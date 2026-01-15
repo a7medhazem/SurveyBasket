@@ -1,6 +1,10 @@
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDependencies();
+// AddDependencies extension method that registers all application services and dependencies
+builder.Services.AddDependencies(builder.Configuration);
+
+var config = builder.Configuration;
+
 
 var app = builder.Build();
 
@@ -15,6 +19,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
 
 app.MapControllers();
 

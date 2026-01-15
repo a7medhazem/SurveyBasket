@@ -1,43 +1,103 @@
-﻿namespace SurveyBasket.Api;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using SurveyBasket.Api.Authentication;
+using System.Text;
+
+namespace SurveyBasket.Api;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddDependencies(this IServiceCollection services)
+    public static IServiceCollection AddDependencies(this IServiceCollection services, IConfiguration Configuration)
     {
         services.AddControllers();
-        services.AddSweggerServices()
-            .AddMapsterConf()
-            .AddFluentValidaton();      
+        services.AddSweggerServicesConfig()
+            .AddMapsterConfig()
+            .AddFluentValidatonConfig();
+
+        services.AddAuthConfig(Configuration);
+
+
+        //add ConnectionString and register ApplicationDbContext
+        var connectionString = Configuration.GetConnectionString("DefaultConnection") ??
+             throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+        services.AddDbContext<ApplicationDbContext>(options
+            => options.UseSqlServer(connectionString));
 
 
 
         services.AddScoped<IPollService, PollService>();
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }
-    
-    public static IServiceCollection AddSweggerServices(this IServiceCollection services)
+
+    private static IServiceCollection AddSweggerServicesConfig(this IServiceCollection services)
     {
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
         return services;
     }
-   
-    public static IServiceCollection AddMapsterConf(this IServiceCollection services)
+
+    private static IServiceCollection AddMapsterConfig(this IServiceCollection services)
     {
         var mapingconfig = TypeAdapterConfig.GlobalSettings;
-        mapingconfig.Scan(Assembly.GetExecutingAssembly());      
+        mapingconfig.Scan(Assembly.GetExecutingAssembly());
         services.AddSingleton<IMapper>(new Mapper(mapingconfig));
 
         return services;
     }
-  
-    public static IServiceCollection AddFluentValidaton(this IServiceCollection services)
+
+    private static IServiceCollection AddFluentValidatonConfig(this IServiceCollection services)
     {
         services.AddFluentValidationAutoValidation()
             .AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         return services;
     }
+    private static IServiceCollection AddAuthConfig(this IServiceCollection services, IConfiguration configuration)
+    {
+        // Must inform the program that Identity will be used
+        services.AddIdentity<ApplicationUser, IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
+
+        services.AddSingleton<IJwtProvider, JwtProvider>();
+
+
+
+        // services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services
+            .AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection(JwtOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+
+        var jwtSettings = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>();
+
+
+        //jwt configurations
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(o =>
+        {
+            o.SaveToken = true;
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.Key!)),
+                ValidIssuer = jwtSettings?.Issuer,
+                ValidAudience = jwtSettings?.Audience
+            };
+        });
+
+
+        return services;
+    }
 }
- 
+
