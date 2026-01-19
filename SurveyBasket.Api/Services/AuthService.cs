@@ -1,5 +1,6 @@
 ﻿
 using SurveyBasket.Api.Authentication;
+using System.Security.Cryptography;
 
 namespace SurveyBasket.Api.Services;
 
@@ -7,6 +8,7 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 {
     private readonly UserManager<ApplicationUser> _UserManager = userManager;//to use identity methods
     private readonly IJwtProvider _JwtProvider = jwtProvider;//to call GenerateToken method
+    private readonly int _RefreshTokenExpiryDays = 14;
 
     public async Task<AuthResponse?> GetTokenAsync(string email, string password, CancellationToken cancellationToken)
     {
@@ -25,8 +27,27 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
         //generate JWT token
         (string token, int expiresIn) = _JwtProvider.GenerateToken(user);
 
-        //return new auth response
-        return new AuthResponse(user.Id, user.Email, user.FirstName, user.LastName, token, expiresIn);
+        //generate Refresh Token 
+        var refreshToken = GenerateRefreshToken();
+        var refreshTokenExpiration = DateTime.UtcNow.AddDays(_RefreshTokenExpiryDays);
 
+        user.RefreshTokens.Add(
+            new RefreshToken()
+            {
+                Token = refreshToken,
+                ExpiresOn = refreshTokenExpiration
+
+            });
+        await _UserManager.UpdateAsync(user);
+
+
+
+        //return new auth response
+        return new AuthResponse(user.Id, user.Email!, user.FirstName, user.LastName, token, expiresIn, refreshToken, refreshTokenExpiration);
+
+    }
+    private static string GenerateRefreshToken()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
     }
 }
