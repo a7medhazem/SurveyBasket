@@ -27,7 +27,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     {
         var isRevoked = await _AuthService.RevokeRefreshTokenAsync(request.token, request.refreshToken, cancellationToken);
 
-        return isRevoked ? Ok() : BadRequest("Operation Falid");
+        return isRevoked ? Ok() : BadRequest("Operation Falid") ;
     }
 
 }
