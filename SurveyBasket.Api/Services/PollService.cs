@@ -20,7 +20,6 @@ public class PollService(ApplicationDbContext context) : IPollService
         await _Context.SaveChangesAsync(cancellationToken);
 
         return poll;
-
     }
 
     public async Task<bool> UpdateAsync(int id, Poll poll, CancellationToken cancellationToken = default)
