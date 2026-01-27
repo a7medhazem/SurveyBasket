@@ -10,6 +10,21 @@ public static class DependencyInjection
     public static IServiceCollection AddDependencies(this IServiceCollection services, IConfiguration Configuration)
     {
         services.AddControllers();
+
+        var allowedOrigins = Configuration.GetSection("AllowedOrigins").Get<string[]>();
+
+        services.AddCors(Options =>
+
+          Options.AddDefaultPolicy(builder =>
+
+              builder
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .WithOrigins(allowedOrigins!)
+          )
+
+        );
+
         services.AddSweggerServicesConfig()
             .AddMapsterConfig()
             .AddFluentValidatonConfig();
