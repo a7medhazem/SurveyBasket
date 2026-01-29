@@ -1,6 +1,4 @@
-﻿using SurveyBasket.Api.Abstractions;
-
-namespace SurveyBasket.Abstractions;
+﻿namespace SurveyBasket.Abstractions;
 
 public class Result
 {

@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace SurveyBasket.Api.Authentication;
+﻿namespace SurveyBasket.Api.Authentication;
 
 public class JwtOptions
 {
@@ -15,6 +13,6 @@ public class JwtOptions
     [Required]
     public string Audience { get; init; } = string.Empty;
 
-   [Range(1, int.MaxValue)]
+    [Range(1, int.MaxValue)]
     public int ExpiryMinutes { get; init; }
 }

@@ -17,6 +17,11 @@ global using SurveyBasket.Api.Services;
 global using SurveyBasket.Api.Contracts.Polls;
 global using SurveyBasket.Api.Persistanse;
 global using SurveyBasket.Api.Contracts.Authentication;
+global using SurveyBasket.Api.Abstractions;
+global using System.ComponentModel.DataAnnotations;
+
+
+
 
 
 
