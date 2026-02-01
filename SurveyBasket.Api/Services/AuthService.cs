@@ -1,7 +1,4 @@
-﻿
-using SurveyBasket.Abstractions;
-using SurveyBasket.Api.Authentication;
-using SurveyBasket.Api.Errors;
+﻿using SurveyBasket.Api.Authentication;
 using System.Security.Cryptography;
 
 namespace SurveyBasket.Api.Services;
