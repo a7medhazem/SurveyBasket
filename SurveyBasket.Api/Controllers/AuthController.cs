@@ -10,7 +10,10 @@ public class AuthController(IAuthService authService) : ControllerBase
     {
         var authResult = await _AuthService.GetTokenAsync(request.Email, request.Password, cancellationToken);
 
-        return authResult.IsSuccess ? Ok(authResult.Value) : BadRequest(authResult.Error);
+        return authResult.IsSuccess
+            ? Ok(authResult.Value)
+            : Problem(statusCode: StatusCodes.Status400BadRequest, title: authResult.Error.Code, detail: authResult.Error.Description);
+
     }
 
 
@@ -19,15 +22,18 @@ public class AuthController(IAuthService authService) : ControllerBase
     {
         var authResult = await _AuthService.GetRefreshTokenAsync(request.token, request.refreshToken, cancellationToken);
 
-        return authResult.IsSuccess ? Ok(authResult.Value) : BadRequest(authResult.Error);
+        return authResult.IsSuccess
+                   ? Ok(authResult.Value)
+                   : Problem(statusCode: StatusCodes.Status400BadRequest, title: authResult.Error.Code, detail: authResult.Error.Description);
     }
 
     [HttpPost("revoke-refresh-token")]
     public async Task<IActionResult> RevokeAsync([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var isRevoked = await _AuthService.RevokeRefreshTokenAsync(request.token, request.refreshToken, cancellationToken);
+        var result = await _AuthService.RevokeRefreshTokenAsync(request.token, request.refreshToken, cancellationToken);
 
-        return isRevoked.IsSuccess ? Ok() : BadRequest("Operation Falid");
+        return result.IsSuccess
+            ? Ok()
+            : Problem(statusCode: StatusCodes.Status400BadRequest, title: result.Error.Code, detail: result.Error.Description);
     }
-
 }

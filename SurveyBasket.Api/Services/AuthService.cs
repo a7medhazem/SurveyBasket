@@ -123,11 +123,12 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 
     }
 
+
+
     //private method which used to generate refresh token
     private static string GenerateRefreshToken()
     {
         return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
     }
-
 
 }
