@@ -1,4 +1,7 @@
-﻿namespace SurveyBasket.Api.Services;
+﻿using Azure.Core;
+using Microsoft.EntityFrameworkCore;
+
+namespace SurveyBasket.Api.Services;
 
 public class PollService(ApplicationDbContext context) : IPollService
 {
@@ -18,27 +21,38 @@ public class PollService(ApplicationDbContext context) : IPollService
         return Result.Success(poll.Adapt<PollResponse>());
     }
 
-    public async Task<PollResponse> AddAsync(PollRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<PollResponse>> AddAsync(PollRequest request, CancellationToken cancellationToken = default)
     {
+        var isExists = await _Context.Polls.AnyAsync(p => p.Tittle == request.Tittle, cancellationToken: cancellationToken);
+
+        if (isExists)
+            return Result.Failure<PollResponse>(PollErrors.DuplicatedPollTittle);
+
         var poll = request.Adapt<Poll>();
 
         await _Context.AddAsync(poll, cancellationToken);
         await _Context.SaveChangesAsync(cancellationToken);
 
-        return poll.Adapt<PollResponse>();
-
+        return Result.Success(poll.Adapt<PollResponse>());
     }
 
-    public async Task<Result> UpdateAsync(int id, PollRequest poll, CancellationToken cancellationToken = default)
+    public async Task<Result> UpdateAsync(int id, PollRequest request, CancellationToken cancellationToken = default)
     {
         var currentPool = await _Context.Polls.FindAsync(id, cancellationToken);
         if (currentPool is null)
             return Result.Failure(PollErrors.PollNotFound);
 
-        currentPool.Tittle = poll.Tittle;
-        currentPool.Summary = poll.Summary;
-        currentPool.StartsAt = poll.StartsAt;
-        currentPool.EndsAt = poll.EndsAt;
+        var isExists = await _Context.Polls.AnyAsync(p => p.Tittle == request.Tittle && p.Id != id, cancellationToken: cancellationToken);
+
+        if (isExists)
+            return Result.Failure(PollErrors.DuplicatedPollTittle);
+
+
+
+        currentPool.Tittle = request.Tittle;
+        currentPool.Summary = request.Summary;
+        currentPool.StartsAt = request.StartsAt;
+        currentPool.EndsAt = request.EndsAt;
 
         //CurrentPoll variable is a poll which is selected in the database
 

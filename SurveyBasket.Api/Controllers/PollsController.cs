@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using System.Reflection.Metadata.Ecma335;
 
 namespace SurveyBasket.Api.Controllers;
 
@@ -26,8 +27,8 @@ public class PollsController(IPollService pollService) : ControllerBase
         var result = await _PollService.GetAsync(id, cancellationToken);
 
 
-        return result.IsSuccess 
-            ? Ok(result.Value) 
+        return result.IsSuccess
+            ? Ok(result.Value)
             : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
     }
 
@@ -36,8 +37,10 @@ public class PollsController(IPollService pollService) : ControllerBase
     [HttpPost("")]
     public async Task<IActionResult> Add([FromBody] PollRequest request, CancellationToken cancellationToken)
     {
-        var newPoll = await _PollService.AddAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(Get), new { id = newPoll.Id }, newPoll);
+        var result = await _PollService.AddAsync(request, cancellationToken);
+        return result.IsSuccess
+            ? CreatedAtAction(nameof(Get), new { id = result.Value.Id }, result.Value)
+            : result.ToProblem(statusCode: StatusCodes.Status409Conflict);
     }
 
 
@@ -48,7 +51,9 @@ public class PollsController(IPollService pollService) : ControllerBase
 
         return result.IsSuccess
             ? NoContent()
-            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+            : result.Error.Code == PollErrors.PollNotFound.Code
+            ? result.ToProblem(statusCode: StatusCodes.Status404NotFound)
+            : result.ToProblem(statusCode: StatusCodes.Status409Conflict);
     }
 
 
