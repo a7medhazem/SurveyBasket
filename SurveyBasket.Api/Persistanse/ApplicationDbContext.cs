@@ -8,7 +8,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     private readonly IHttpContextAccessor _HttpContextAccessor = httpContextAccessor;
 
+    public DbSet<Answer> Answers { get; set; }
     public DbSet<Poll> Polls { get; set; }
+    public DbSet<Question> Questions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
