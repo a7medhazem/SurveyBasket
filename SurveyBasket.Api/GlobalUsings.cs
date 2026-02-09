@@ -21,6 +21,10 @@ global using SurveyBasket.Api.Abstractions;
 global using System.ComponentModel.DataAnnotations;
 global using SurveyBasket.Api.Errors;
 global using SurveyBasket.Abstractions;
+global using SurveyBasket.Api.Contracts.Answers;
+global using SurveyBasket.Api.Contracts.Questions;
+
+
 
 
 
