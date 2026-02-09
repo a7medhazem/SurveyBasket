@@ -1,7 +1,4 @@
-﻿using Azure.Core;
-using Microsoft.EntityFrameworkCore;
-
-namespace SurveyBasket.Api.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public class PollService(ApplicationDbContext context) : IPollService
 {
