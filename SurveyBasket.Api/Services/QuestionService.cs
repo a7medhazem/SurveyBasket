@@ -13,16 +13,15 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
         var questionIsExists = await _Context.Questions.AnyAsync(x => x.Content == request.Content && x.Id == pollId, cancellationToken);
 
-        if (!questionIsExists)
+        if (questionIsExists)
             return Result.Failure<QuestionResponse>(QuestionErrors.DuplicatedQuestionContent);
 
         //after checking about pollid and duplicated question content
+
         var question = request.Adapt<Question>();
         question.PollId = pollId;
 
-        request.Answers
-             .ForEach(answer => question.Answers
-                   .Add(new Answer { Content = answer }));
+        // request.Answers.ForEach(answer => question.Answers.Add(new Answer { Content = answer }));//I'm used  mapping
 
         await _Context.AddAsync(question, cancellationToken);
         await _Context.SaveChangesAsync(cancellationToken);
