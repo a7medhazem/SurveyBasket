@@ -1,4 +1,5 @@
 ﻿using Mapster;
+using SurveyBasket.Api.Entites;
 
 namespace SurveyBasket.Api.Services;
 
@@ -24,6 +25,22 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
         return Result.Success<IEnumerable<QuestionResponse>>(questions);
     }
 
+    public async Task<Result<QuestionResponse>> GetAsync(int pollId, int id, CancellationToken cancellationToken = default)
+    {
+
+        var question = await _Context.Questions
+            .Where(x => x.PollId == pollId && x.Id == id)
+            .Include(x => x.Answers)
+            .ProjectToType<QuestionResponse>()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (question is null)
+            return Result.Failure<QuestionResponse>(QuestionErrors.QuestionNotFound);
+
+
+        return Result.Success(question.Adapt<QuestionResponse>());
+    }
 
 
     public async Task<Result<QuestionResponse>> AddAsync(int pollId, QuestionRequest request, CancellationToken cancellationToken = default)

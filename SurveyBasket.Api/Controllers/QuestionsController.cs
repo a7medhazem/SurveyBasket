@@ -1,4 +1,5 @@
 ﻿using Azure.Core;
+using SurveyBasket.Api.Entites;
 
 namespace SurveyBasket.Api.Controllers;
 
@@ -21,7 +22,13 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
 
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> Get() => Ok();
+    public async Task<IActionResult> Get([FromRoute] int pollId, [FromRoute] int id, CancellationToken cancellationToken)
+    {
+        var result = await _QuestionService.GetAsync(pollId, id, cancellationToken);
+
+        return result.IsSuccess ?
+            Ok(result.Value) : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+    }
 
 
     [HttpPost("")]
