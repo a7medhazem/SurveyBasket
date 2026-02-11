@@ -1,8 +1,30 @@
-﻿namespace SurveyBasket.Api.Services;
+﻿using Mapster;
+
+namespace SurveyBasket.Api.Services;
 
 public class QuestionService(ApplicationDbContext context) : IQuestionService
 {
     private readonly ApplicationDbContext _Context = context;
+
+
+    public async Task<Result<IEnumerable<QuestionResponse>>> GetAllAsync(int pollId, CancellationToken cancellationToken = default)
+    {
+        var pollIsExists = await _Context.Polls.AnyAsync(x => x.Id == pollId, cancellationToken);
+
+        if (!pollIsExists)
+            return Result.Failure<IEnumerable<QuestionResponse>>(PollErrors.PollNotFound);
+
+        var questions = await _Context.Questions
+            .Where(x => x.PollId == pollId)
+            .Include(x => x.Answers)
+            .ProjectToType<QuestionResponse>()
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return Result.Success<IEnumerable<QuestionResponse>>(questions);
+    }
+
+
 
     public async Task<Result<QuestionResponse>> AddAsync(int pollId, QuestionRequest request, CancellationToken cancellationToken = default)
     {
@@ -29,4 +51,6 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
         return Result.Success(question.Adapt<QuestionResponse>());
 
     }
+
+
 }
