@@ -39,7 +39,7 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
             return Result.Failure<QuestionResponse>(QuestionErrors.QuestionNotFound);
 
 
-        return Result.Success(question.Adapt<QuestionResponse>());
+        return Result.Success(question);
     }
 
 
