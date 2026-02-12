@@ -27,7 +27,6 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
     public async Task<Result<QuestionResponse>> GetAsync(int pollId, int id, CancellationToken cancellationToken = default)
     {
-
         var question = await _Context.Questions
             .Where(x => x.PollId == pollId && x.Id == id)
             .Include(x => x.Answers)
@@ -69,5 +68,17 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
     }
 
+    public async Task<Result> ToggleStatusAsync(int pollId, int id, CancellationToken cancellationToken = default)
+    {
+        var question = await _Context.Questions
+            .SingleOrDefaultAsync(x => x.PollId == pollId && x.Id == id, cancellationToken);
 
+        if (question is null)
+            return Result.Failure(QuestionErrors.QuestionNotFound);
+
+        question.IsActive = !question.IsActive;
+        await _Context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
 }
