@@ -43,6 +43,17 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
             : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
     }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update([FromRoute] int pollId, [FromRoute] int id, [FromBody] QuestionRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _QuestionService.UpdateAsync(pollId, id, request, cancellationToken);
+
+        return result.IsSuccess
+            ? NoContent()
+            : result.Error.Code == QuestionErrors.DuplicatedQuestionContent.Code
+            ? result.ToProblem(statusCode: StatusCodes.Status409Conflict)
+            : result.ToProblem(statusCode: StatusCodes.Status404NotFound);
+    }
     [HttpPut("{id}/toggleStatus")]
     public async Task<IActionResult> ToggleStatus([FromRoute] int pollId, [FromRoute] int id, CancellationToken cancellationToken)
     {

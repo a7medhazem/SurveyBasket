@@ -1,4 +1,5 @@
 ﻿using Mapster;
+using Microsoft.EntityFrameworkCore;
 using SurveyBasket.Api.Entites;
 
 namespace SurveyBasket.Api.Services;
@@ -37,7 +38,6 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
         if (question is null)
             return Result.Failure<QuestionResponse>(QuestionErrors.QuestionNotFound);
 
-
         return Result.Success(question);
     }
 
@@ -68,6 +68,62 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
     }
 
+    public async Task<Result> UpdateAsync(int pollId, int id, QuestionRequest request, CancellationToken cancellationToken = default)
+    {
+        var question = await _Context.Questions
+            .Include(x => x.Answers)
+            .SingleOrDefaultAsync(x => x.PollId == pollId && x.Id == id, cancellationToken);
+
+        if (question is null)
+            return Result.Failure(QuestionErrors.QuestionNotFound);
+
+        if (!question.IsActive)
+            return Result.Failure(QuestionErrors.QuestionNotActive);
+
+        var QuestionIsExists = await _Context.Questions
+            .AnyAsync(p => p.PollId == pollId
+                   && p.Id != id
+                   && p.Content == request.Content,
+                   cancellationToken: cancellationToken
+             );
+
+        if (QuestionIsExists)
+            return Result.Failure(QuestionErrors.DuplicatedQuestionContent);
+
+        // starting of actual update after checking
+        question.Content = request.Content;
+
+        // current answers
+        var currentAnswers = question.Answers
+            .Select(x => x.Content)
+            .ToList();
+
+        // add new answers
+        var newAnswers = request.Answers
+            .Except(currentAnswers)
+            .ToList();
+
+        foreach (var answer in newAnswers)
+        {
+            question.Answers.Add(new Answer
+            {
+                Content = answer
+            });
+        }
+
+        // update IsActive status
+        foreach (var answer in question.Answers.ToList())
+        {
+            answer.IsActive = request.Answers.Contains(answer.Content);
+        }
+
+
+        await _Context.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+
     public async Task<Result> ToggleStatusAsync(int pollId, int id, CancellationToken cancellationToken = default)
     {
         var question = await _Context.Questions
@@ -81,4 +137,6 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
         return Result.Success();
     }
+
+
 }
