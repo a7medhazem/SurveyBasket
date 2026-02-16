@@ -4,7 +4,8 @@ public class VoteConfigurations : IEntityTypeConfiguration<Vote>
 {
     public void Configure(EntityTypeBuilder<Vote> builder)
     {
-        // has inedex PollId, UserId
+        // each user has one vote for one poll
+        //
         builder.HasIndex(x => new { x.PollId, x.UserId }).IsUnique();
     }
 }

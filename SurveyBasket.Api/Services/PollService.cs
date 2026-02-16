@@ -4,8 +4,11 @@ public class PollService(ApplicationDbContext context) : IPollService
 {
     private readonly ApplicationDbContext _Context = context;
 
-    public async Task<IEnumerable<Poll>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            await _Context.Polls.AsNoTracking().ToListAsync(cancellationToken);
+    public async Task<IEnumerable<PollResponse>> GetAllAsync(CancellationToken cancellationToken = default) =>
+          await _Context.Polls
+              .AsNoTracking()
+              .ProjectToType<PollResponse>()
+              .ToListAsync(cancellationToken);
 
     public async Task<Result<PollResponse>> GetAsync(int id, CancellationToken cancellationToken = default)
     {
