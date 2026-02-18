@@ -1,5 +1,5 @@
 var builder = WebApplication.CreateBuilder(args);
-//
+
 // AddDependencies extension method that registers all application services and dependencies
 builder.Services.AddDependencies(builder.Configuration);
 
