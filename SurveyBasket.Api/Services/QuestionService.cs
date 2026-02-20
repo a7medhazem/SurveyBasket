@@ -1,6 +1,7 @@
 ﻿using Mapster;
 using Microsoft.EntityFrameworkCore;
 using SurveyBasket.Api.Entites;
+using System.Collections.Generic;
 
 namespace SurveyBasket.Api.Services;
 
@@ -25,6 +26,49 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
         return Result.Success<IEnumerable<QuestionResponse>>(questions);
     }
+
+
+    /// <summary>
+    /// Retrieves available active questions for a specific poll 
+    /// only if the poll is published, within its active date range, 
+    /// and the user has not already voted.
+    /// </summary>
+    public async Task<Result<IEnumerable<QuestionResponse>>> GetAvailableAsync(int pollId, string UserId, CancellationToken cancellationToken = default)
+    {
+        // Check if the current user has already voted in this poll (PollId)
+        var hasVote = await _Context.Votes
+            .AnyAsync(x => x.PollId == pollId && x.UserId == UserId, cancellationToken: cancellationToken);
+
+        if (hasVote)
+            return Result.Failure<IEnumerable<QuestionResponse>>(VoteErrors.DuplicatedVote);
+
+        // Validate that the poll exists, is published, and currently within its active date range
+        var pollIsExists = await _Context.Polls
+            .AnyAsync(x => x.Id == pollId
+                   && x.IsPublished
+                   && x.StartsAt <= DateOnly.FromDateTime(DateTime.UtcNow)
+                   && x.EndsAt >= DateOnly.FromDateTime(DateTime.UtcNow), cancellationToken);
+
+        if (!pollIsExists)
+            return Result.Failure<IEnumerable<QuestionResponse>>(PollErrors.PollNotFound);
+
+
+        var questions = await _Context.Questions
+              .Where(x => x.PollId == pollId && x.IsActive)
+              .Include(x => x.Answers)
+              .Select(q => new QuestionResponse(
+                  q.Id,
+                  q.Content,
+                  q.Answers
+                      .Where(a => a.IsActive)
+                      .Select(a => new AnswerResponse(a.Id, a.Content))
+              ))
+              .AsNoTracking()
+              .ToListAsync(cancellationToken);
+
+        return Result.Success<IEnumerable<QuestionResponse>>(questions);
+    }
+
 
     public async Task<Result<QuestionResponse>> GetAsync(int pollId, int id, CancellationToken cancellationToken = default)
     {
