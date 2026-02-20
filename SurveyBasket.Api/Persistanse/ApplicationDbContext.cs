@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using SurveyBasket.Api.Extensions;
 using System.Security.Claims;
 
 namespace SurveyBasket.Api.Persistanse;
@@ -38,7 +39,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         foreach (var entityEntry in entries)
         {
-            var currentUserId = _HttpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var currentUserId = _HttpContextAccessor.HttpContext?.User.GetUserId()!;
 
             if (entityEntry.State == EntityState.Added)
             {
