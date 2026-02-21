@@ -40,10 +40,10 @@ public static class DependencyInjection
             => options.UseSqlServer(connectionString));
 
 
-
-        services.AddScoped<IPollService, PollService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPollService, PollService>();
         services.AddScoped<IQuestionService, QuestionService>();
+        services.AddScoped<IVoteService, VoteService>();
 
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();
