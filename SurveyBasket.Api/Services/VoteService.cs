@@ -34,6 +34,23 @@ public class VoteService(ApplicationDbContext context) : IVoteService
         if (!request.Answers.Select(x => x.QuestionId).SequenceEqual(availableQuestions))
             return Result.Failure(VoteErrors.InvalidQuestions);
 
+        // Validate that the submitted answers IDs exactly match the available active questions for the given poll
+        var availableAnswers = await _context.Answers
+            .Where(x => x.IsActive && x.Question.PollId == pollId)
+            .Select(a => new { a.Id, a.QuestionId })
+            .ToListAsync(cancellationToken);
+
+
+        var isValid = request.Answers.All(a =>
+            availableAnswers.Any(x =>
+                x.Id == a.AnswerId &&
+                x.QuestionId == a.QuestionId));
+
+
+        if (!isValid)
+            return Result.Failure(VoteErrors.InvalidQuestions);
+
+
         var vote = new Vote
         {
             PollId = pollId,
