@@ -17,10 +17,7 @@ public class VotesController(IQuestionService questionService, IVoteService vote
         var result = await _questionService.GetAvailableAsync(PollId, userId!, cancellationToken);
 
         return result.IsSuccess
-            ? Ok(result.Value)
-            : result.Error.Code == VoteErrors.DuplicatedVote.Code
-            ? result.ToProblem(StatusCodes.Status409Conflict)
-            : result.ToProblem(StatusCodes.Status404NotFound);
+            ? Ok(result.Value) : result.ToProblem();
     }
 
     [HttpPost("")]
@@ -29,11 +26,6 @@ public class VotesController(IQuestionService questionService, IVoteService vote
         var result = await _voteService.AddAsync(PollId, User.GetUserId()!, request, cancellationToken);
 
         return result.IsSuccess
-            ? Created()
-            : result.Error.Code == VoteErrors.InvalidQuestions.Code
-            ? result.ToProblem(StatusCodes.Status400BadRequest)
-            : result.Error.Code == PollErrors.PollNotFound.Code
-            ? result.ToProblem(StatusCodes.Status404NotFound)
-            : result.ToProblem(StatusCodes.Status409Conflict);
+            ? Created() : result.ToProblem();
     }
 }
