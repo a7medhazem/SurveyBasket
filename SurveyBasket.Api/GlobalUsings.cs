@@ -25,6 +25,7 @@ global using SurveyBasket.Abstractions;
 global using SurveyBasket.Api.Contracts.Answers;
 global using SurveyBasket.Api.Contracts.Questions;
 global using SurveyBasket.Api.Extensions;
+global using SurveyBasket.Api.Contracts.Results;
 
 
 
