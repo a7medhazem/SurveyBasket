@@ -12,7 +12,7 @@ public class ResultService(ApplicationDbContext context) : IResultService
 
                   x.Tittle,
                   x.Votes.Select(v => new VotesResponse(
-                      $"{v.User.FirstName}{v.User.LastName}",
+                      $"{v.User.FirstName}-{v.User.LastName}",
                       v.SubmittedOn,
                       v.VoteAnswers.Select(c => new QuestionAnswerResponse(
                          c.Question.Content,

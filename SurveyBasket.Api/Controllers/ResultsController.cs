@@ -9,7 +9,7 @@ public class ResultsController(IResultService resultService) : ControllerBase
 {
     private readonly IResultService _resultService = resultService;
 
-    [HttpGet]
+    [HttpGet("raw-data")]
     public async Task<IActionResult> PollVotes([FromRoute] int pollId, CancellationToken cancellationToken)
     {
         var result = await _resultService.GetPollVotesAsync(pollId, cancellationToken);
