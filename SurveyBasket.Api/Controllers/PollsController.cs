@@ -6,12 +6,12 @@
 
 public class PollsController(IPollService pollService) : ControllerBase
 {
-    private readonly IPollService _PollService = pollService;
+    private readonly IPollService _pollService = pollService;
 
     [HttpGet("")]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        var polls = await _PollService.GetAllAsync(cancellationToken);
+        var polls = await _pollService.GetAllAsync(cancellationToken);
         return Ok(polls);
     }
 
@@ -19,7 +19,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     [HttpGet("current")]
     public async Task<IActionResult> GetCurrent(CancellationToken cancellationToken)
     {
-        var polls = await _PollService.GetCurrentAsync(cancellationToken);
+        var polls = await _pollService.GetCurrentAsync(cancellationToken);
         return Ok(polls);
     }
 
@@ -28,7 +28,7 @@ public class PollsController(IPollService pollService) : ControllerBase
 
     public async Task<IActionResult> Get([FromRoute] int id, CancellationToken cancellationToken)
     {
-        var result = await _PollService.GetAsync(id, cancellationToken);
+        var result = await _pollService.GetAsync(id, cancellationToken);
 
 
         return result.IsSuccess
@@ -40,7 +40,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     [HttpPost("")]
     public async Task<IActionResult> Add([FromBody] PollRequest request, CancellationToken cancellationToken)
     {
-        var result = await _PollService.AddAsync(request, cancellationToken);
+        var result = await _pollService.AddAsync(request, cancellationToken);
         return result.IsSuccess
             ? CreatedAtAction(nameof(Get), new { id = result.Value.Id }, result.Value) : result.ToProblem();
     }
@@ -49,7 +49,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update([FromRoute] int id, [FromBody] PollRequest request, CancellationToken cancellationToken)
     {
-        var result = await _PollService.UpdateAsync(id, request, cancellationToken);
+        var result = await _pollService.UpdateAsync(id, request, cancellationToken);
 
         return result.IsSuccess
             ? NoContent() : result.ToProblem();
@@ -59,7 +59,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken cancellationToken)
     {
-        var result = await _PollService.DeleteAsync(id, cancellationToken);
+        var result = await _pollService.DeleteAsync(id, cancellationToken);
 
         return result.IsSuccess
             ? NoContent() : result.ToProblem();
@@ -69,7 +69,7 @@ public class PollsController(IPollService pollService) : ControllerBase
     [HttpPut("{id}/togglePublish")]
     public async Task<IActionResult> TogglePublish([FromRoute] int id, CancellationToken cancellationToken)
     {
-        var result = await _PollService.TogglePublishStatusAsync(id, cancellationToken);
+        var result = await _pollService.TogglePublishStatusAsync(id, cancellationToken);
 
         return result.IsSuccess
             ? NoContent() : result.ToProblem();

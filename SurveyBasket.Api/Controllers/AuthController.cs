@@ -20,7 +20,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshAsync([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var authResult = await _AuthService.GetRefreshTokenAsync(request.token, request.refreshToken, cancellationToken);
+        var authResult = await _AuthService.GetRefreshTokenAsync(request.Token, request.RefreshToken, cancellationToken);
 
         return authResult.IsSuccess
                    ? Ok(authResult.Value) : authResult.ToProblem();
@@ -29,7 +29,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("revoke-refresh-token")]
     public async Task<IActionResult> RevokeAsync([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var result = await _AuthService.RevokeRefreshTokenAsync(request.token, request.refreshToken, cancellationToken);
+        var result = await _AuthService.RevokeRefreshTokenAsync(request.Token, request.RefreshToken, cancellationToken);
 
         return result.IsSuccess
             ? Ok() : result.ToProblem();

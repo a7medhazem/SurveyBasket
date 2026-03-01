@@ -1,13 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using SurveyBasket.Api.Extensions;
-using System.Security.Claims;
-
-namespace SurveyBasket.Api.Persistanse;
+﻿namespace SurveyBasket.Api.Persistanse;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IHttpContextAccessor httpContextAccessor)
     : IdentityDbContext<ApplicationUser>(options)
 {
-    private readonly IHttpContextAccessor _HttpContextAccessor = httpContextAccessor;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
     public DbSet<Answer> Answers { get; set; }
     public DbSet<Poll> Polls { get; set; }
@@ -39,7 +35,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         foreach (var entityEntry in entries)
         {
-            var currentUserId = _HttpContextAccessor.HttpContext?.User.GetUserId()!;
+            var currentUserId = _httpContextAccessor.HttpContext?.User.GetUserId()!;
 
             if (entityEntry.State == EntityState.Added)
             {

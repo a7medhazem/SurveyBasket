@@ -1,7 +1,4 @@
-﻿using SurveyBasket.Api.Contracts.Results;
-using System.Linq;
-
-namespace SurveyBasket.Api.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public class ResultService(ApplicationDbContext context) : IResultService
 {

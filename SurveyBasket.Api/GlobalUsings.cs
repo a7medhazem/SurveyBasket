@@ -10,6 +10,8 @@ global using Microsoft.AspNetCore.Authorization;
 
 global using Microsoft.EntityFrameworkCore.Metadata.Builders;
 global using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
+global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+
 
 
 global using SurveyBasket.Api;
@@ -26,6 +28,9 @@ global using SurveyBasket.Api.Contracts.Answers;
 global using SurveyBasket.Api.Contracts.Questions;
 global using SurveyBasket.Api.Extensions;
 global using SurveyBasket.Api.Contracts.Results;
+global using SurveyBasket.Api.Contracts.Votes;
+
+
 
 
 

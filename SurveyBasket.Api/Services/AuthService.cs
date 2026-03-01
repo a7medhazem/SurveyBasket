@@ -5,31 +5,31 @@ namespace SurveyBasket.Api.Services;
 
 public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider jwtProvider) : IAuthService
 {
-    private readonly UserManager<ApplicationUser> _UserManager = userManager;//to use identity methods
-    private readonly IJwtProvider _JwtProvider = jwtProvider;//to call GenerateToken method
-    private readonly int _RefreshTokenExpiryDays = 14;
+    private readonly UserManager<ApplicationUser> _userManager = userManager;//to use identity methods
+    private readonly IJwtProvider _jwtProvider = jwtProvider;//to call GenerateToken method
+    private readonly int _refreshTokenExpiryDays = 14;
 
     public async Task<Result<AuthResponse>> GetTokenAsync(string email, string password, CancellationToken cancellationToken)
     {
         //check user
-        var user = await _UserManager.FindByEmailAsync(email);
+        var user = await _userManager.FindByEmailAsync(email);
 
         if (user is null)
             return Result.Failure<AuthResponse>(UserErrors.InvalidCredentials);
 
         //check password 
-        var isValidPassword = await _UserManager.CheckPasswordAsync(user, password);
+        var isValidPassword = await _userManager.CheckPasswordAsync(user, password);
 
         if (!isValidPassword)
             return Result.Failure<AuthResponse>(UserErrors.InvalidCredentials);
 
 
         //generate JWT token
-        (string token, int expiresIn) = _JwtProvider.GenerateToken(user);
+        (string token, int expiresIn) = _jwtProvider.GenerateToken(user);
 
         //generate Refresh Token 
         var refreshToken = GenerateRefreshToken();
-        var refreshTokenExpiration = DateTime.UtcNow.AddDays(_RefreshTokenExpiryDays);
+        var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
 
         user.RefreshTokens.Add(
             new RefreshToken()
@@ -38,7 +38,7 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
                 ExpiresOn = refreshTokenExpiration
 
             });
-        await _UserManager.UpdateAsync(user);
+        await _userManager.UpdateAsync(user);
 
         var response = new AuthResponse(user.Id, user.Email!, user.FirstName, user.LastName, token, expiresIn, refreshToken, refreshTokenExpiration);
 
@@ -50,13 +50,13 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 
     public async Task<Result<AuthResponse>> GetRefreshTokenAsync(string token, string refreshToken, CancellationToken cancellationToken = default)
     {
-        var userId = _JwtProvider.ValidateToken(token);//return user id or null
+        var userId = _jwtProvider.ValidateToken(token);//return user id or null
 
         if (userId is null)
             return Result.Failure<AuthResponse>(UserErrors.InvalidJwtToken);
 
 
-        var user = await _UserManager.FindByIdAsync(userId);
+        var user = await _userManager.FindByIdAsync(userId);
 
         if (user is null)
             return Result.Failure<AuthResponse>(UserErrors.InvalidJwtToken);
@@ -74,11 +74,11 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
         // generate new access and refresh tokens.
 
         //generate JWT token
-        (string newToken, int expiresIn) = _JwtProvider.GenerateToken(user);
+        (string newToken, int expiresIn) = _jwtProvider.GenerateToken(user);
 
         //generate Refresh Token 
         var newRefreshToken = GenerateRefreshToken();
-        var refreshTokenExpiration = DateTime.UtcNow.AddDays(_RefreshTokenExpiryDays);
+        var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
 
         user.RefreshTokens.Add(
             new RefreshToken()
@@ -86,7 +86,7 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
                 Token = newRefreshToken,
                 ExpiresOn = refreshTokenExpiration
             });
-        await _UserManager.UpdateAsync(user);
+        await _userManager.UpdateAsync(user);
 
         //return new auth response
         var response = new AuthResponse(user.Id, user.Email!, user.FirstName, user.LastName, newToken, expiresIn, newRefreshToken, refreshTokenExpiration);
@@ -98,13 +98,13 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 
     public async Task<Result> RevokeRefreshTokenAsync(string token, string refreshToken, CancellationToken cancellationToken = default)
     {
-        var userId = _JwtProvider.ValidateToken(token);//return user id or null
+        var userId = _jwtProvider.ValidateToken(token);//return user id or null
 
         if (userId is null)
             return Result.Failure(UserErrors.InvalidJwtToken);
 
 
-        var user = await _UserManager.FindByIdAsync(userId);
+        var user = await _userManager.FindByIdAsync(userId);
 
         if (user is null)
             return Result.Failure(UserErrors.InvalidJwtToken);
@@ -117,7 +117,7 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 
         UserRefreshToken.RevokedOn = DateTime.UtcNow;
 
-        await _UserManager.UpdateAsync(user);
+        await _userManager.UpdateAsync(user);
 
         return Result.Success();//refresh token is revoked successfuly
 
