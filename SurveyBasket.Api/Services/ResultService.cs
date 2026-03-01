@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using SurveyBasket.Api.Contracts.Results;
+using System.Linq;
 
 namespace SurveyBasket.Api.Services;
 
@@ -48,5 +49,29 @@ public class ResultService(ApplicationDbContext context) : IResultService
              .ToListAsync(cancellationToken);
 
         return Result.Success<IEnumerable<VotesPerDayResponse>>(votesPerDay);
+    }
+
+    public async Task<Result<IEnumerable<VotesPerQuestionResponse>>> GetVotesPerQuestionAsync(int pollId, CancellationToken cancellationToken = default)
+    {
+        var pollExists = await _context.Polls
+                    .AnyAsync(p => p.Id == pollId, cancellationToken);
+
+        if (!pollExists)
+            return Result.Failure<IEnumerable<VotesPerQuestionResponse>>(PollErrors.PollNotFound);
+
+        var votesPerQuestion = await _context.VoteAnswers
+             .Where(x => x.Vote.PollId == pollId)
+             .Select(x => new VotesPerQuestionResponse(
+                 x.Question.Content,
+                 x.Question.Votes
+                     .GroupBy(x => new { AnswerId = x.Answer.Id, AnswerContent = x.Answer.Content })
+                     .Select(g => new VotesPerAnswerResponse(
+                         g.Key.AnswerContent,
+                         g.Count()
+                     ))
+             ))
+             .ToListAsync(cancellationToken);
+
+        return Result.Success<IEnumerable<VotesPerQuestionResponse>>(votesPerQuestion);
     }
 }
