@@ -41,6 +41,7 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
             : result.ToProblem();
     }
 
+
     [HttpPut("{id}")]
     public async Task<IActionResult> Update([FromRoute] int pollId, [FromRoute] int id, [FromBody] QuestionRequest request, CancellationToken cancellationToken)
     {
@@ -49,6 +50,8 @@ public class QuestionsController(IQuestionService questionService) : ControllerB
         return result.IsSuccess
             ? NoContent() : result.ToProblem();
     }
+
+
     [HttpPut("{id}/toggleStatus")]
     public async Task<IActionResult> ToggleStatus([FromRoute] int pollId, [FromRoute] int id, CancellationToken cancellationToken)
     {

@@ -1,9 +1,4 @@
-﻿using Mapster;
-using Microsoft.EntityFrameworkCore;
-using SurveyBasket.Api.Entites;
-using System.Collections.Generic;
-
-namespace SurveyBasket.Api.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public class QuestionService(ApplicationDbContext context) : IQuestionService
 {
@@ -120,9 +115,6 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
         if (question is null)
             return Result.Failure(QuestionErrors.QuestionNotFound);
-
-        if (!question.IsActive)
-            return Result.Failure(QuestionErrors.QuestionNotActive);
 
         var QuestionIsExists = await _context.Questions
             .AnyAsync(p => p.PollId == pollId
