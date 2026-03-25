@@ -1,13 +1,16 @@
 ﻿namespace SurveyBasket.Api.Controllers;
 [Route("[controller]")]
 [ApiController]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(IAuthService authService, ILogger<AuthService> logger) : ControllerBase
 {
     private readonly IAuthService _AuthService = authService;
+    private readonly ILogger<AuthService> _logger = logger;
 
     [HttpPost("")]
     public async Task<IActionResult> LoginAsync([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
+        _logger.LogInformation("Logging with email: {email} and password:{password}", request.Email, request.Password);
+
         var authResult = await _AuthService.GetTokenAsync(request.Email, request.Password, cancellationToken);
 
         return authResult.IsSuccess

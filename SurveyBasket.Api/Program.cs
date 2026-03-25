@@ -1,10 +1,13 @@
+using Serilog;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // AddDependencies extension method that registers all application services and dependencies
 builder.Services.AddDependencies(builder.Configuration);
 
-var config = builder.Configuration;
-
+// Add Serilog Configurations
+builder.Host.UseSerilog((context, config) =>
+    config.ReadFrom.Configuration(context.Configuration));
 
 var app = builder.Build();
 
@@ -15,6 +18,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 
