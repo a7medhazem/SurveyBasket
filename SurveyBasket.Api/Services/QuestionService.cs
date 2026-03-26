@@ -1,9 +1,11 @@
-﻿namespace SurveyBasket.Api.Services;
+﻿using Microsoft.AspNetCore.OutputCaching;
 
-public class QuestionService(ApplicationDbContext context) : IQuestionService
+namespace SurveyBasket.Api.Services;
+
+public class QuestionService(ApplicationDbContext context, IOutputCacheStore outputCacheStore) : IQuestionService
 {
     private readonly ApplicationDbContext _context = context;
-
+    private readonly IOutputCacheStore _outputCacheStore = outputCacheStore;
 
     public async Task<Result<IEnumerable<QuestionResponse>>> GetAllAsync(int pollId, CancellationToken cancellationToken = default)
     {
@@ -103,6 +105,8 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
         await _context.AddAsync(question, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _outputCacheStore.EvictByTagAsync("availableQuestions", cancellationToken);
+
         return Result.Success(question.Adapt<QuestionResponse>());
 
     }
@@ -156,6 +160,8 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _outputCacheStore.EvictByTagAsync("availableQuestions", cancellationToken);
+
         return Result.Success();
     }
 
@@ -170,6 +176,8 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
         question.IsActive = !question.IsActive;
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _outputCacheStore.EvictByTagAsync("availableQuestions", cancellationToken);
 
         return Result.Success();
     }

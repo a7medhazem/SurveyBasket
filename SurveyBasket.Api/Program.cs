@@ -1,5 +1,16 @@
 var builder = WebApplication.CreateBuilder(args);
 
+// to use caching
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy("Polls", builder =>
+        builder
+          .Cache()
+          .Expire(TimeSpan.FromSeconds(120))
+          .Tag("availableQuestions"));
+
+});
+
 // AddDependencies extension method that registers all application services and dependencies
 builder.Services.AddDependencies(builder.Configuration);
 
@@ -25,6 +36,7 @@ app.UseCors();
 
 app.UseAuthorization();
 
+app.UseOutputCache();
 
 app.MapControllers();
 
