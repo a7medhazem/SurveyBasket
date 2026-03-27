@@ -13,6 +13,10 @@ global using Mapster;
 global using MapsterMapper;
 global using System.Reflection;
 global using Serilog;
+global using Microsoft.Extensions.Caching.Distributed;
+global using System.Text.Json;
+
+
 
 global using SurveyBasket.Api;
 global using SurveyBasket.Api.Entites;

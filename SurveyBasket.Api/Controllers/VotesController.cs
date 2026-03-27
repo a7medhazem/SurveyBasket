@@ -11,7 +11,7 @@ public class VotesController(IQuestionService questionService, IVoteService vote
     private readonly IQuestionService _questionService = questionService;
     private readonly IVoteService _voteService = voteService;
 
-    [OutputCache(PolicyName = "Polls")]
+    // [OutputCache(PolicyName = "Polls")]
     [HttpGet("")]
     public async Task<IActionResult> Start([FromRoute] int PollId, CancellationToken cancellationToken)
     {
