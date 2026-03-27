@@ -2,10 +2,11 @@
 
 namespace SurveyBasket.Api.Services;
 
-public class QuestionService(ApplicationDbContext context, ICacheService cacheService) : IQuestionService
+public class QuestionService(ApplicationDbContext context, ICacheService cacheService, ILogger<QuestionService> logger) : IQuestionService
 {
     private readonly ApplicationDbContext _context = context;
     private readonly ICacheService _cacheService = cacheService;
+    private readonly ILogger<QuestionService> _logger = logger;
 
     private const string _cachePrefix = "availableQuestions";
 
@@ -63,6 +64,7 @@ public class QuestionService(ApplicationDbContext context, ICacheService cacheSe
 
         if (cachedQuestions is null)
         {
+            _logger.LogInformation("Select Questions from DB");
             questions = await _context.Questions
                 .Where(x => x.PollId == pollId && x.IsActive)
                 .Include(x => x.Answers)
@@ -78,6 +80,7 @@ public class QuestionService(ApplicationDbContext context, ICacheService cacheSe
         }
         else
         {
+            _logger.LogInformation("Select Questions from Cache");
             questions = cachedQuestions;
         }
 
