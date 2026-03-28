@@ -5,6 +5,7 @@ global using Microsoft.AspNetCore.Identity;
 global using Microsoft.AspNetCore.Authorization;
 global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 global using Microsoft.EntityFrameworkCore.Metadata.Builders;
+global using Microsoft.Extensions.Caching.Hybrid;
 
 global using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 global using System.ComponentModel.DataAnnotations;
