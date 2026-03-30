@@ -122,6 +122,7 @@ public static class DependencyInjection
             };
         });
 
+        //identity configurations
         services.Configure<IdentityOptions>(options =>
         {
             options.Password.RequiredLength = 8;
