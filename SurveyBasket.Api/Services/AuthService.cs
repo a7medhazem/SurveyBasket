@@ -1,7 +1,4 @@
-﻿using SurveyBasket.Api.Authentication;
-using System.Security.Cryptography;
-
-namespace SurveyBasket.Api.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider jwtProvider) : IAuthService
 {

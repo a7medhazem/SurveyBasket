@@ -14,7 +14,7 @@ global using Mapster;
 global using MapsterMapper;
 global using System.Reflection;
 global using Serilog;
-
+global using System.Security.Cryptography;
 
 
 
@@ -33,6 +33,7 @@ global using SurveyBasket.Api.Extensions;
 global using SurveyBasket.Api.Contracts.Results;
 global using SurveyBasket.Api.Contracts.Votes;
 global using SurveyBasket.Api.Abstractions.Consts;
+global using SurveyBasket.Api.Authentication;
 
 
 

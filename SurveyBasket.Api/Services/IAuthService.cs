@@ -1,6 +1,4 @@
-﻿using SurveyBasket.Abstractions;
-
-namespace SurveyBasket.Api.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public interface IAuthService
 {
