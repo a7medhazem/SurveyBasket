@@ -1,7 +1,4 @@
-﻿using Azure.Core;
-using SurveyBasket.Api.Entites;
-
-namespace SurveyBasket.Api.Controllers;
+﻿namespace SurveyBasket.Api.Controllers;
 
 [Route("api/polls/{pollId}/[controller]")]
 [ApiController]

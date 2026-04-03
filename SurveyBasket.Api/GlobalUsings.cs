@@ -6,6 +6,7 @@ global using Microsoft.AspNetCore.Authorization;
 global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 global using Microsoft.EntityFrameworkCore.Metadata.Builders;
 global using Microsoft.Extensions.Caching.Hybrid;
+global using Microsoft.AspNetCore.Diagnostics;
 
 global using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 global using System.ComponentModel.DataAnnotations;
@@ -15,6 +16,7 @@ global using MapsterMapper;
 global using System.Reflection;
 global using Serilog;
 global using System.Security.Cryptography;
+global using System.Security.Claims;
 
 
 
