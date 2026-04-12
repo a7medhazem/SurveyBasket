@@ -120,7 +120,48 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 
     }
 
+    public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    {
+        // check duplicate email
+        var emailExists = await _userManager.Users.AnyAsync(x => x.Email == request.Email, cancellationToken);
 
+        if (emailExists)
+            return Result.Failure<AuthResponse>(UserErrors.DuplicatedEmail);
+
+        // create user
+        var user = request.Adapt<ApplicationUser>();
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+
+        // return token / response
+
+        if (result.Succeeded)
+        {
+            //generate JWT token
+            (string newToken, int expiresIn) = _jwtProvider.GenerateToken(user);
+
+            //generate Refresh Token 
+            var newRefreshToken = GenerateRefreshToken();
+            var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
+
+            user.RefreshTokens.Add(
+                new RefreshToken()
+                {
+                    Token = newRefreshToken,
+                    ExpiresOn = refreshTokenExpiration
+                });
+            await _userManager.UpdateAsync(user);
+
+            //return new auth response
+            var response = new AuthResponse(user.Id, user.Email!, user.FirstName, user.LastName, newToken, expiresIn, newRefreshToken, refreshTokenExpiration);
+
+            return Result.Success(response);
+        }
+        var error = result.Errors.First();
+
+        return Result.Failure<AuthResponse>(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
+
+    }
 
     //private method which used to generate refresh token
     private static string GenerateRefreshToken()
