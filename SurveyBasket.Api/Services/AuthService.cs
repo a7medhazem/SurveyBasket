@@ -1,46 +1,61 @@
-﻿namespace SurveyBasket.Api.Services;
+﻿using Microsoft.AspNetCore.WebUtilities;
+using System.Text;
 
-public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider jwtProvider) : IAuthService
+namespace SurveyBasket.Api.Services;
+
+public class AuthService(UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
+    ILogger<AuthService> logger,
+    IJwtProvider jwtProvider) : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;//to use identity methods
+    private readonly SignInManager<ApplicationUser> _signInManager = signInManager;// Handles the sign-in process efficiently
+    private readonly ILogger<AuthService> _logger = logger;
     private readonly IJwtProvider _jwtProvider = jwtProvider;//to call GenerateToken method
     private readonly int _refreshTokenExpiryDays = 14;
 
     public async Task<Result<AuthResponse>> GetTokenAsync(string email, string password, CancellationToken cancellationToken)
     {
-        //check user
-        var user = await _userManager.FindByEmailAsync(email);
-
-        if (user is null)
+        // check user
+        if (await _userManager.FindByEmailAsync(email) is not { } user)
             return Result.Failure<AuthResponse>(UserErrors.InvalidCredentials);
 
-        //check password 
-        var isValidPassword = await _userManager.CheckPasswordAsync(user, password);
+        // check password 
 
-        if (!isValidPassword)
-            return Result.Failure<AuthResponse>(UserErrors.InvalidCredentials);
+        // var isValidPassword = await _userManager.CheckPasswordAsync(user, password);
+        // if (!isValidPassword)
+        //  return Result.Failure<AuthResponse>(UserErrors.InvalidCredentials);
+
+        var result = await _signInManager.PasswordSignInAsync(user, password, false, false);
 
 
-        //generate JWT token
-        (string token, int expiresIn) = _jwtProvider.GenerateToken(user);
+        if (result.Succeeded)
+        {
+            //generate JWT token
+            (string token, int expiresIn) = _jwtProvider.GenerateToken(user);
 
-        //generate Refresh Token 
-        var refreshToken = GenerateRefreshToken();
-        var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
+            //generate Refresh Token 
+            var refreshToken = GenerateRefreshToken();
+            var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
 
-        user.RefreshTokens.Add(
-            new RefreshToken()
-            {
-                Token = refreshToken,
-                ExpiresOn = refreshTokenExpiration
+            user.RefreshTokens.Add(
+                new RefreshToken()
+                {
+                    Token = refreshToken,
+                    ExpiresOn = refreshTokenExpiration
 
-            });
-        await _userManager.UpdateAsync(user);
+                });
+            await _userManager.UpdateAsync(user);
 
-        var response = new AuthResponse(user.Id, user.Email!, user.FirstName, user.LastName, token, expiresIn, refreshToken, refreshTokenExpiration);
+            var response = new AuthResponse(user.Id, user.Email!, user.FirstName, user.LastName, token, expiresIn, refreshToken, refreshTokenExpiration);
 
-        //return new auth response
-        return Result.Success(response);
+            //return new auth response
+            return Result.Success(response);
+
+        }
+
+        // if sign in proccess not succeded
+        return Result.Failure<AuthResponse>(result.IsNotAllowed ? UserErrors.EmailNotConfirmed : UserErrors.InvalidCredentials);
 
     }
 
@@ -120,7 +135,7 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 
     }
 
-    public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<Result> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
         // check duplicate email
         var emailExists = await _userManager.Users.AnyAsync(x => x.Email == request.Email, cancellationToken);
@@ -137,26 +152,20 @@ public class AuthService(UserManager<ApplicationUser> userManager, IJwtProvider 
 
         if (result.Succeeded)
         {
-            //generate JWT token
-            (string newToken, int expiresIn) = _jwtProvider.GenerateToken(user);
+            // Generate email confirmation token
+            var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-            //generate Refresh Token 
-            var newRefreshToken = GenerateRefreshToken();
-            var refreshTokenExpiration = DateTime.UtcNow.AddDays(_refreshTokenExpiryDays);
+            // Encode the token to be URL-safe
+            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-            user.RefreshTokens.Add(
-                new RefreshToken()
-                {
-                    Token = newRefreshToken,
-                    ExpiresOn = refreshTokenExpiration
-                });
-            await _userManager.UpdateAsync(user);
+            // Log the confirmation code (for development/testing only)
+            _logger.LogInformation("Confirmation code: {code}", code);
 
-            //return new auth response
-            var response = new AuthResponse(user.Id, user.Email!, user.FirstName, user.LastName, newToken, expiresIn, newRefreshToken, refreshTokenExpiration);
+            // TODO: Send email with confirmation link
 
-            return Result.Success(response);
+            return Result.Success();
         }
+
         var error = result.Errors.First();
 
         return Result.Failure<AuthResponse>(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
