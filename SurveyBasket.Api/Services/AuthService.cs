@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.WebUtilities;
+using System.Net;
 using System.Text;
 
 namespace SurveyBasket.Api.Services;
@@ -205,7 +206,29 @@ public class AuthService(UserManager<ApplicationUser> userManager,
 
         return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
     }
+    public async Task<Result> ResendConfirnationEmailAsync(ResendConfirnationEmailRequest request)
+    {
+        if (await _userManager.FindByEmailAsync(request.Email) is not { } user)
+            return Result.Success();
 
+
+        if (user.EmailConfirmed)
+            return Result.Failure(UserErrors.DuplicatedConfirmation);
+
+        // Generate email confirmation token
+        var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+        // Encode the token to be URL-safe
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+        // Log the confirmation code (for development/testing only)
+        _logger.LogInformation("Resend confirmation token for {Email}: {Token}", user.Email, code);
+
+        // TODO: Send email with confirmation link
+
+
+        return Result.Success();
+    }
 
     //private method which used to generate refresh token
     private static string GenerateRefreshToken()
