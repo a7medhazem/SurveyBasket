@@ -141,15 +141,14 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         var emailExists = await _userManager.Users.AnyAsync(x => x.Email == request.Email, cancellationToken);
 
         if (emailExists)
-            return Result.Failure<AuthResponse>(UserErrors.DuplicatedEmail);
+            return Result.Failure(UserErrors.DuplicatedEmail);
 
         // create user
         var user = request.Adapt<ApplicationUser>();
 
         var result = await _userManager.CreateAsync(user, request.Password);
 
-        // return token / response
-
+        // Generate email confirmation token
         if (result.Succeeded)
         {
             // Generate email confirmation token
@@ -168,9 +167,45 @@ public class AuthService(UserManager<ApplicationUser> userManager,
 
         var error = result.Errors.First();
 
-        return Result.Failure<AuthResponse>(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
+        return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
 
     }
+
+    public async Task<Result> ConfirmEmailAsync(ConfirmEmailRequest request)
+    {
+        // 1. Retrieve user by Id and validate existence
+        if (await _userManager.FindByIdAsync(request.UserId) is not { } user)
+            return Result.Failure(UserErrors.InvalidCode);
+
+        // 2. Check if email is already confirmed
+        if (user.EmailConfirmed)
+            return Result.Failure(UserErrors.DuplicatedConfirmation);
+
+        // 3. Decode the token(code) from URL format to normal string
+        var code = request.Code;
+
+        try
+        {
+            code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
+        }
+        catch (FormatException)
+        {
+            return Result.Failure(UserErrors.InvalidCode);
+        }
+
+        // 4. Verifies the token is valid for this user (generated with same user data & security stamp)
+        var result = await _userManager.ConfirmEmailAsync(user, code);
+
+
+        // 5. Return result (success or failure)
+        if (result.Succeeded)
+            return Result.Success();
+
+        var error = result.Errors.First();
+
+        return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
+    }
+
 
     //private method which used to generate refresh token
     private static string GenerateRefreshToken()
