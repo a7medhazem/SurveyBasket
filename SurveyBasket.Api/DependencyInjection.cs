@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using SurveyBasket.Api.Authentication;
+using SurveyBasket.Api.Settings;
 using System.Text;
 
 namespace SurveyBasket.Api;
@@ -54,6 +55,9 @@ public static class DependencyInjection
 
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();
+
+        // Bind EmailSettings section from appsettings.json to EmailSettings class
+        services.Configure<EmailSettings>(Configuration.GetSection("EmailSettings"));
 
         return services;
     }

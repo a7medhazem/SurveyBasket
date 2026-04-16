@@ -208,12 +208,16 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     }
     public async Task<Result> ResendConfirnationEmailAsync(ResendConfirnationEmailRequest request)
     {
+        // 1. Retrieve user email and validate existence
         if (await _userManager.FindByEmailAsync(request.Email) is not { } user)
             return Result.Success();
 
-
+        // 2. Check if email is already confirmed
         if (user.EmailConfirmed)
             return Result.Failure(UserErrors.DuplicatedConfirmation);
+
+
+        // 3. Generate and encode a URL-safe email confirmation token
 
         // Generate email confirmation token
         var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -221,11 +225,10 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         // Encode the token to be URL-safe
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-        // Log the confirmation code (for development/testing only)
+        // 4. Log the token and send confirmation email to the user
         _logger.LogInformation("Resend confirmation token for {Email}: {Token}", user.Email, code);
 
         // TODO: Send email with confirmation link
-
 
         return Result.Success();
     }
