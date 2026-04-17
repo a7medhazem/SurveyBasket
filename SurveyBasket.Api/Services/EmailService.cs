@@ -1,4 +1,4 @@
-﻿namespace SurveyBasket.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public class EmailService(IOptions<EmailSettings> mailSettings, ILogger<EmailService> logger) : IEmailSender
 {

@@ -1,8 +1,4 @@
-﻿using Microsoft.AspNetCore.WebUtilities;
-using System.Net;
-using System.Text;
-
-namespace SurveyBasket.Api.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public class AuthService(UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
