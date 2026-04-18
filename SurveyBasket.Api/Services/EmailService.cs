@@ -28,13 +28,25 @@ public class EmailService(IOptions<EmailSettings> mailSettings, ILogger<EmailSer
         // 4. Connect to SMTP server and authenticate
         using var smtp = new SmtpClient();
 
-        _logger.LogInformation("Sending email to {email}", email);
+        try
+        {
+            _logger.LogInformation("Sending email to {email}", email);
 
-        smtp.Connect(_mailSettings.Host, _mailSettings.Port, SecureSocketOptions.StartTls);
-        smtp.Authenticate(_mailSettings.Mail, _mailSettings.Password);
+            await smtp.ConnectAsync(_mailSettings.Host, _mailSettings.Port, SecureSocketOptions.StartTls);
 
-        // 5. Send email and disconnect
-        await smtp.SendAsync(message);
-        smtp.Disconnect(true);
+            await smtp.AuthenticateAsync(_mailSettings.Mail, _mailSettings.Password);
+
+            await smtp.SendAsync(message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending email to {email}", email);
+            throw;
+        }
+        finally
+        {
+            if (smtp.IsConnected)
+                await smtp.DisconnectAsync(true);
+        }
     }
 }
