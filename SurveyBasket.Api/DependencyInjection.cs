@@ -51,6 +51,8 @@ public static class DependencyInjection
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();
 
+        services.AddHttpContextAccessor();
+
         // Bind EmailSettings section from appsettings.json to EmailSettings class
         services.Configure<EmailSettings>(Configuration.GetSection("EmailSettings"));
 

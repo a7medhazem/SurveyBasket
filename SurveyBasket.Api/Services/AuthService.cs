@@ -1,14 +1,22 @@
-﻿namespace SurveyBasket.Api.Services;
+﻿using SurveyBasket.Api.Helpers;
+
+namespace SurveyBasket.Api.Services;
 
 public class AuthService(UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     ILogger<AuthService> logger,
-    IJwtProvider jwtProvider) : IAuthService
+    IJwtProvider jwtProvider,
+    IEmailSender emailSender,
+    IHttpContextAccessor httpContextAccessor) : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;//to use identity methods
     private readonly SignInManager<ApplicationUser> _signInManager = signInManager;// Handles the sign-in process efficiently
     private readonly ILogger<AuthService> _logger = logger;
     private readonly IJwtProvider _jwtProvider = jwtProvider;//to call GenerateToken method
+    private readonly IEmailSender _emailSender = emailSender;
+    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+
+
     private readonly int _refreshTokenExpiryDays = 14;
 
     public async Task<Result<AuthResponse>> GetTokenAsync(string email, string password, CancellationToken cancellationToken)
@@ -157,7 +165,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
             // Log the confirmation code (for development/testing only)
             _logger.LogInformation("Confirmation code: {code}", code);
 
-            // TODO: Send email with confirmation link
+            await SendConfirmationEmail(user, code);
 
             return Result.Success();
         }
@@ -224,9 +232,38 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         // 4. Log the token and send confirmation email to the user
         _logger.LogInformation("Resend confirmation token for {Email}: {Token}", user.Email, code);
 
-        // TODO: Send email with confirmation link
+        await SendConfirmationEmail(user, code);
 
         return Result.Success();
+    }
+
+
+
+    // Sends an email confirmation message to the user with a verification link
+    // that includes userId and token to confirm their email address
+    private async Task SendConfirmationEmail(ApplicationUser user, string code)
+    {
+        // 1. Get the request origin (frontend URL) from headers
+        var origin = _httpContextAccessor.HttpContext?.Request.Headers.Origin;
+
+        // 2. Build the email confirmation link with userId and token
+        var confirmationUrl = $"{origin}/auth/emailConfirmation?userId={user.Id}&code={code}";
+
+        // 3. Generate the email body using HTML template and replace placeholders
+        var emailBody = EmailBodyBuilder.GenerateEmailBody("EmailConfirmation",
+            templateModel: new Dictionary<string, string>
+            {
+            { "{{name}}", user.FirstName },
+            { "{{action_url}}", confirmationUrl }
+            }
+        );
+
+        // 4. Send the email with subject and generated body
+        await _emailSender.SendEmailAsync(
+            user.Email!,
+            "✅ Survey Basket: Email Confirmation",
+            emailBody
+        );
     }
 
     //private method which used to generate refresh token

@@ -12,6 +12,7 @@ global using Microsoft.AspNetCore.Identity.UI.Services;
 global using Microsoft.IdentityModel.Tokens;
 global using Microsoft.AspNetCore.WebUtilities;
 
+
 global using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 global using System.ComponentModel.DataAnnotations;
 global using FluentValidation;
@@ -44,16 +45,3 @@ global using SurveyBasket.Api.Contracts.Votes;
 global using SurveyBasket.Api.Abstractions.Consts;
 global using SurveyBasket.Api.Authentication;
 global using SurveyBasket.Api.Settings;
-
-
-
-
-
-
-
-
-
-
-
-
-
