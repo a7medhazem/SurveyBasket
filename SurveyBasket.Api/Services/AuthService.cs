@@ -253,7 +253,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         var emailBody = EmailBodyBuilder.GenerateEmailBody("EmailConfirmation",
             templateModel: new Dictionary<string, string>
             {
-            { "{{name}}", user.FirstName },
+            { "{{name}}",$"{user.FirstName} {user.LastName}" },
             { "{{action_url}}", confirmationUrl }
             }
         );
