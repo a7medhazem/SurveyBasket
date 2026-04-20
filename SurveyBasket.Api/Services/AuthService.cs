@@ -7,15 +7,14 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     ILogger<AuthService> logger,
     IJwtProvider jwtProvider,
     IEmailSender emailSender,
-    IHttpContextAccessor httpContextAccessor) : IAuthService
+    IOptions<AppSettings> appSettings) : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;//to use identity methods
     private readonly SignInManager<ApplicationUser> _signInManager = signInManager;// Handles the sign-in process efficiently
     private readonly ILogger<AuthService> _logger = logger;
     private readonly IJwtProvider _jwtProvider = jwtProvider;//to call GenerateToken method
     private readonly IEmailSender _emailSender = emailSender;
-    private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-
+    private readonly IOptions<AppSettings> _appSettings = appSettings;
 
     private readonly int _refreshTokenExpiryDays = 14;
 
@@ -243,13 +242,13 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     // that includes userId and token to confirm their email address
     private async Task SendConfirmationEmail(ApplicationUser user, string code)
     {
-        // 1. Get the request origin (frontend URL) from headers
-        var origin = _httpContextAccessor.HttpContext?.Request.Headers.Origin;
 
-        // 2. Build the email confirmation link with userId and token
-        var confirmationUrl = $"{origin}/auth/emailConfirmation?userId={user.Id}&code={code}";
+        // 1. Build the email confirmation link with userId and token
 
-        // 3. Generate the email body using HTML template and replace placeholders
+        // var confirmationUrl = $"{origin}/auth/emailConfirmation?userId={user.Id}&code={code}";
+        var confirmationUrl = $"{_appSettings.Value.BaseUrl}/auth/emailConfirmation?userId={user.Id}&code={code}";
+
+        // 2. Generate the email body using HTML template and replace placeholders
         var emailBody = EmailBodyBuilder.GenerateEmailBody("EmailConfirmation",
             templateModel: new Dictionary<string, string>
             {
@@ -258,7 +257,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
             }
         );
 
-        // 4. Send the email with subject and generated body
+        // 3. Send the email with subject and generated body
         await _emailSender.SendEmailAsync(
             user.Email!,
             "✅ Survey Basket: Email Confirmation",

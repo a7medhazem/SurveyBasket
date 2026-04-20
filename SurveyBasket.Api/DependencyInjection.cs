@@ -39,6 +39,8 @@ public static class DependencyInjection
             => options.UseSqlServer(connectionString));
 
 
+
+
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IEmailSender, EmailService>();
         services.AddScoped<IPollService, PollService>();
@@ -51,10 +53,12 @@ public static class DependencyInjection
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();
 
-        services.AddHttpContextAccessor();
 
         // Bind EmailSettings section from appsettings.json to EmailSettings class
         services.Configure<EmailSettings>(Configuration.GetSection("EmailSettings"));
+
+        // Bind AppSettings section from appsettings.json to EmailSettings class
+        services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
 
         return services;
     }
