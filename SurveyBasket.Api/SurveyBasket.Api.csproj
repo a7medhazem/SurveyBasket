@@ -8,6 +8,20 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Templates\ConfirmFailed.html" />
+	  <None Remove="Templates\ConfirmSuccess.html" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="Templates\ConfirmFailed.html">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Templates\ConfirmSuccess.html">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
 		<PackageReference Include="MailKit" Version="4.16.0" />
 		<PackageReference Include="Mapster" Version="7.4.0" />

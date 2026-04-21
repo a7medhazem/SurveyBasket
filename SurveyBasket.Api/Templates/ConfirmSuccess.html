@@ -1,0 +1,115 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Confirmed</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f0eb;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 24px;
+            padding: 56px 48px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+        }
+
+        .icon-wrap {
+            width: 88px;
+            height: 88px;
+            background: #f0faf4;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 28px;
+        }
+
+            .icon-wrap svg {
+                width: 44px;
+                height: 44px;
+            }
+
+        .brand {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #8B6F47;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 12px;
+        }
+
+        p {
+            color: #718096;
+            font-size: 15px;
+            line-height: 1.7;
+            margin-bottom: 36px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0faf4;
+            color: #276749;
+            border: 1px solid #9ae6b4;
+            border-radius: 50px;
+            padding: 10px 28px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .footer {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="brand">Survey Basket</div>
+        <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+            </svg>
+        </div>
+        <h1>Email Verified!</h1>
+        <p>Your email address has been successfully confirmed.<br />You can now sign in to your account.</p>
+        <span class="badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="#38a169" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+            </svg>
+            Verification Complete
+        </span>
+        <div class="footer">© 2025 Survey Basket. All rights reserved.</div>
+    </div>
+</body>
+</html>
