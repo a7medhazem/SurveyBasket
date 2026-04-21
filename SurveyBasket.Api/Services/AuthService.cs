@@ -246,8 +246,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         // 1. Build the email confirmation link with userId and token
 
         // var confirmationUrl = $"{origin}/auth/emailConfirmation?userId={user.Id}&code={code}";
-        var confirmationUrl = $"{_appSettings.Value.BaseUrl}/auth/emailConfirmation?userId={user.Id}&code={code}";
-
+        var confirmationUrl = $"{_appSettings.Value.BaseUrl}/auth/confirm-email?userId={user.Id}&code={code}";
         // 2. Generate the email body using HTML template and replace placeholders
         var emailBody = EmailBodyBuilder.GenerateEmailBody("EmailConfirmation",
             templateModel: new Dictionary<string, string>
@@ -260,7 +259,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         // 3. Send the email with subject and generated body
         await _emailSender.SendEmailAsync(
             user.Email!,
-            "✅ Survey Basket: Email Confirmation",
+            "Survey Basket: Email Confirmation",
             emailBody
         );
     }
