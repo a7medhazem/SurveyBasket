@@ -45,3 +45,4 @@ global using SurveyBasket.Api.Contracts.Votes;
 global using SurveyBasket.Api.Abstractions.Consts;
 global using SurveyBasket.Api.Authentication;
 global using SurveyBasket.Api.Settings;
+global using SurveyBasket.Api.Contracts.Users;
