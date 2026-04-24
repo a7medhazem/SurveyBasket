@@ -10,7 +10,7 @@ public class EmailService(IOptions<EmailSettings> mailSettings, ILogger<EmailSer
         // 1. Create email message (sender + subject)
         var message = new MimeMessage
         {
-            Sender = new MailboxAddress(_mailSettings.DisplayName, _mailSettings.Mail),
+            Sender = MailboxAddress.Parse(_mailSettings.Mail),
             Subject = subject
         };
 
