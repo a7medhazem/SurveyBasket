@@ -1,6 +1,4 @@
-﻿using SurveyBasket.Api.Helpers;
-
-namespace SurveyBasket.Api.Controllers;
+﻿namespace SurveyBasket.Api.Controllers;
 [Route("[controller]")]
 [ApiController]
 public class AuthController(IAuthService authService, ILogger<AuthService> logger) : ControllerBase
@@ -66,6 +64,25 @@ public class AuthController(IAuthService authService, ILogger<AuthService> logge
     public async Task<IActionResult> ResendConfirmation([FromBody] ResendConfirnationEmailRequest request)
     {
         var result = await _authService.ResendConfirnationEmailAsync(request);
+
+        return result.IsSuccess
+            ? Ok() : result.ToProblem();
+    }
+
+
+    [HttpPost("forget-password")]
+    public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
+    {
+        var result = await _authService.SendResetPasswordCodeAsync(request.Email);
+
+        return result.IsSuccess
+            ? Ok() : result.ToProblem();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var result = await _authService.ResetPasswordAsync(request);
 
         return result.IsSuccess
             ? Ok() : result.ToProblem();
