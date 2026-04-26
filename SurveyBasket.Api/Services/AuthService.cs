@@ -236,10 +236,29 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         return Result.Success();
     }
 
+    public async Task<Result> SendResetPasswordCodeAsync(string email)
+    {
+        if (await _userManager.FindByEmailAsync(email) is not { } user)
+            return Result.Success();
 
 
-    // Sends an email confirmation message to the user with a verification link
-    // that includes userId and token to confirm their email address
+        // Generate email confirmation token
+        var code = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+        // Encode the token to be URL-safe
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+        // 4. Log the token and send confirmation email to the user
+        _logger.LogInformation("Reset code token for {Email}: {Token}", user.Email, code);
+
+        await SendResetPasswordEmail(user, code);
+
+        return Result.Success();
+    }
+
+
+
+    // Sends email confirmation link with userId and token
     private async Task SendConfirmationEmail(ApplicationUser user, string code)
     {
 
@@ -247,6 +266,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
 
         // var confirmationUrl = $"{origin}/auth/emailConfirmation?userId={user.Id}&code={code}";
         var confirmationUrl = $"{_appSettings.Value.BaseUrl}/auth/confirm-email?userId={user.Id}&code={code}";
+
         // 2. Generate the email body using HTML template and replace placeholders
         var emailBody = EmailBodyBuilder.GenerateEmailBody("EmailConfirmation",
             templateModel: new Dictionary<string, string>
@@ -260,6 +280,26 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         await _emailSender.SendEmailAsync(
             user.Email!,
             "Survey Basket: Email Confirmation",
+            emailBody
+        );
+    }
+
+    //add reset password email sender with templated HTML and verification link
+    private async Task SendResetPasswordEmail(ApplicationUser user, string code)
+    {
+        var confirmationUrl = $"{_appSettings.Value.BaseUrl}/auth/forgetPassword?email={user.Email}&code={code}";
+
+        var emailBody = EmailBodyBuilder.GenerateEmailBody("ForgetPassword",
+            templateModel: new Dictionary<string, string>
+            {
+            { "{{name}}",$"{user.FirstName}" },
+            { "{{action_url}}", confirmationUrl }
+            }
+        );
+
+        await _emailSender.SendEmailAsync(
+            user.Email!,
+            "Survey Basket: Reset Password",
             emailBody
         );
     }
