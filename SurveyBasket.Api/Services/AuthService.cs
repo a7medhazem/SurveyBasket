@@ -1,6 +1,4 @@
-﻿using SurveyBasket.Api.Helpers;
-
-namespace SurveyBasket.Api.Services;
+﻿namespace SurveyBasket.Api.Services;
 
 public class AuthService(UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
@@ -241,6 +239,9 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         if (await _userManager.FindByEmailAsync(email) is not { } user)
             return Result.Success();
 
+        if (!user.EmailConfirmed)
+            return Result.Failure(UserErrors.DuplicatedConfirmation);
+
 
         // Generate email confirmation token
         var code = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -254,6 +255,35 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         await SendResetPasswordEmail(user, code);
 
         return Result.Success();
+    }
+
+
+    public async Task<Result> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+
+        if (user is null || !user.EmailConfirmed)
+            return Result.Failure(UserErrors.InvalidCode); // misleading hacker
+
+        IdentityResult result;
+
+        try
+        {
+            var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Code));
+
+            result = await _userManager.ResetPasswordAsync(user, code, request.NewPassword);
+        }
+        catch (FormatException)
+        {
+            result = IdentityResult.Failed(_userManager.ErrorDescriber.InvalidToken());
+        }
+
+        if (result.Succeeded)
+            return Result.Success();
+
+        var error = result.Errors.First();
+
+        return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status401Unauthorized));
     }
 
 
