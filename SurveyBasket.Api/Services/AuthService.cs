@@ -262,13 +262,13 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         {
             UserId = user.Id,
             CodeHash = codeHash,
-            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(10)
+            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(10)//expiration after 10 minitues
         };
 
         _context.PasswordResetOtps.Add(otpEntity);
         await _context.SaveChangesAsync();
 
-        // 5. Log for dev only — remove in production ⚠
+        // 5. Log for dev only — remove in production 
         _logger.LogInformation("OTP for {Email}: {OTP}", email, otp);
 
         // 6. Send email
@@ -283,27 +283,55 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user is null || !user.EmailConfirmed)
-            return Result.Failure(UserErrors.InvalidCode); // misleading hacker
+            return Result.Failure(UserErrors.InvalidCredentials);
 
-        IdentityResult result;
+        // 1. Get latest valid OTP
+        var otp = await _context.PasswordResetOtps
+            .Where(x =>
+                x.UserId == user.Id &&
+                !x.IsUsed &&
+                x.ExpiresOnUtc > DateTime.UtcNow)
+            .OrderByDescending(x => x.CreatedOnUtc)
+            .FirstOrDefaultAsync();
 
-        try
+        if (otp is null)
+            return Result.Failure(UserErrors.InvalidCode);
+
+        // 2. Check attempts
+        if (otp.Attempts >= 5)
         {
-            var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Code));
-
-            result = await _userManager.ResetPasswordAsync(user, code, request.NewPassword);
+            otp.IsUsed = true;
+            await _context.SaveChangesAsync();
+            return Result.Failure(UserErrors.TooManyAttempts);
         }
-        catch (FormatException)
+
+        // 3. Verify OTP using PasswordHasher
+        var hasher = new PasswordHasher<ApplicationUser>();
+        var verifyResult = hasher.VerifyHashedPassword(user, otp.CodeHash, request.Code);
+
+        if (verifyResult == PasswordVerificationResult.Failed)
         {
-            result = IdentityResult.Failed(_userManager.ErrorDescriber.InvalidToken());
+            otp.Attempts++;
+            await _context.SaveChangesAsync();
+            return Result.Failure(UserErrors.InvalidCode);
         }
 
-        if (result.Succeeded)
-            return Result.Success();
+        // 4. Mark OTP as used
+        otp.IsUsed = true;
 
-        var error = result.Errors.First();
+        // 5. Reset password via Identity
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
 
-        return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status401Unauthorized));
+        if (!result.Succeeded)
+        {
+            var error = result.Errors.First();
+            return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Result.Success();
     }
 
 
@@ -340,8 +368,9 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         var emailBody = EmailBodyBuilder.GenerateEmailBody("ForgetPassword",
             templateModel: new Dictionary<string, string>
             {
-            { "{{name}}", user.FirstName },
-            { "{{otp}}", otp }
+               { "{{name}}", user.FirstName },
+               { "{{otp}}", otp },
+               { "{{expiry_minutes}}", "10" }
             }
         );
 
