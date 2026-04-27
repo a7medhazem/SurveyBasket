@@ -5,7 +5,8 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     ILogger<AuthService> logger,
     IJwtProvider jwtProvider,
     IEmailSender emailSender,
-    IOptions<AppSettings> appSettings) : IAuthService
+    IOptions<AppSettings> appSettings,
+     ApplicationDbContext context) : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;//to use identity methods
     private readonly SignInManager<ApplicationUser> _signInManager = signInManager;// Handles the sign-in process efficiently
@@ -13,6 +14,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     private readonly IJwtProvider _jwtProvider = jwtProvider;//to call GenerateToken method
     private readonly IEmailSender _emailSender = emailSender;
     private readonly IOptions<AppSettings> _appSettings = appSettings;
+    private readonly ApplicationDbContext _context = context;
 
     private readonly int _refreshTokenExpiryDays = 14;
 
@@ -243,16 +245,34 @@ public class AuthService(UserManager<ApplicationUser> userManager,
             return Result.Failure(UserErrors.DuplicatedConfirmation);
 
 
-        // Generate email confirmation token
-        var code = await _userManager.GeneratePasswordResetTokenAsync(user);
+        // 1. Generate OTP (6 digits - cryptographically secure)
+        var otp = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
 
-        // Encode the token to be URL-safe
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        // 2. Invalidate all previous OTPs for this user
+        await _context.PasswordResetOtps
+            .Where(x => x.UserId == user.Id && !x.IsUsed)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsUsed, true));
 
-        // 4. Log the token and send confirmation email to the user
-        _logger.LogInformation("Reset code token for {Email}: {Token}", user.Email, code);
+        // 3. Hash OTP using PasswordHasher (salted + secure)
+        var hasher = new PasswordHasher<ApplicationUser>();
+        var codeHash = hasher.HashPassword(user, otp);
 
-        await SendResetPasswordEmail(user, code);
+        // 4. Save new OTP record
+        var otpEntity = new PasswordResetOtp
+        {
+            UserId = user.Id,
+            CodeHash = codeHash,
+            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(10)//expiration after 10 minitues
+        };
+
+        _context.PasswordResetOtps.Add(otpEntity);
+        await _context.SaveChangesAsync();
+
+        // 5. Log for dev only — remove in production 
+        _logger.LogInformation("OTP for {Email}: {OTP}", email, otp);
+
+        // 6. Send email
+        await SendResetPasswordEmail(user, otp);
 
         return Result.Success();
     }
@@ -263,27 +283,55 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user is null || !user.EmailConfirmed)
-            return Result.Failure(UserErrors.InvalidCode); // misleading hacker
+            return Result.Failure(UserErrors.InvalidCredentials);
 
-        IdentityResult result;
+        // 1. Get latest valid OTP
+        var otp = await _context.PasswordResetOtps
+            .Where(x =>
+                x.UserId == user.Id &&
+                !x.IsUsed &&
+                x.ExpiresOnUtc > DateTime.UtcNow)
+            .OrderByDescending(x => x.CreatedOnUtc)
+            .FirstOrDefaultAsync();
 
-        try
+        if (otp is null)
+            return Result.Failure(UserErrors.InvalidCode);
+
+        // 2. Check attempts
+        if (otp.Attempts >= 5)
         {
-            var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Code));
-
-            result = await _userManager.ResetPasswordAsync(user, code, request.NewPassword);
+            otp.IsUsed = true;
+            await _context.SaveChangesAsync();
+            return Result.Failure(UserErrors.TooManyAttempts);
         }
-        catch (FormatException)
+
+        // 3. Verify OTP using PasswordHasher
+        var hasher = new PasswordHasher<ApplicationUser>();
+        var verifyResult = hasher.VerifyHashedPassword(user, otp.CodeHash, request.Code);
+
+        if (verifyResult == PasswordVerificationResult.Failed)
         {
-            result = IdentityResult.Failed(_userManager.ErrorDescriber.InvalidToken());
+            otp.Attempts++;
+            await _context.SaveChangesAsync();
+            return Result.Failure(UserErrors.InvalidCode);
         }
 
-        if (result.Succeeded)
-            return Result.Success();
+        // 4. Mark OTP as used
+        otp.IsUsed = true;
 
-        var error = result.Errors.First();
+        // 5. Reset password via Identity
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
 
-        return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status401Unauthorized));
+        if (!result.Succeeded)
+        {
+            var error = result.Errors.First();
+            return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Result.Success();
     }
 
 
@@ -314,16 +362,15 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         );
     }
 
-    //add reset password email sender with templated HTML and verification link
-    private async Task SendResetPasswordEmail(ApplicationUser user, string code)
+    //add reset password email sender with templated HTML and OTP code
+    private async Task SendResetPasswordEmail(ApplicationUser user, string otp)
     {
-        var confirmationUrl = $"{_appSettings.Value.BaseUrl}/auth/forgetPassword?email={user.Email}&code={code}";
-
         var emailBody = EmailBodyBuilder.GenerateEmailBody("ForgetPassword",
             templateModel: new Dictionary<string, string>
             {
-            { "{{name}}",$"{user.FirstName}" },
-            { "{{action_url}}", confirmationUrl }
+               { "{{name}}", user.FirstName },
+               { "{{otp}}", otp },
+               { "{{expiry_minutes}}", "10" }
             }
         );
 
