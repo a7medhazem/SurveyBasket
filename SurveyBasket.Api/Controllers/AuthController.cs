@@ -95,4 +95,11 @@ public class AuthController(IAuthService authService, ILogger<AuthService> logge
         return result.IsSuccess
             ? Ok() : result.ToProblem();
     }
+
+    [HttpPost("resend-otp")]
+    public async Task<IActionResult> ResendOtp([FromBody] ResendOtpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.ResendResetPasswordOtpAsync(request.Email, cancellationToken);
+        return result.IsSuccess ? Ok() : result.ToProblem();
+    }
 }

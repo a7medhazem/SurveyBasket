@@ -368,6 +368,52 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         return Result.Success();
     }
 
+    public async Task<Result> ResendResetPasswordOtpAsync(string email, CancellationToken cancellationToken)
+    {
+        if (await _userManager.FindByEmailAsync(email) is not { } user)
+            return Result.Success(); // Security: do not reveal whether the user exists
+
+        if (!user.EmailConfirmed)
+            return Result.Failure(UserErrors.EmailNotConfirmed);
+
+        // 1. Cooldown check — prevent spam
+        // If an OTP was sent less than 2 minutes ago, do not send another one
+        var lastOtp = await _context.PasswordResetOtps
+            .Where(x => x.UserId == user.Id)
+            .OrderByDescending(x => x.CreatedOnUtc)
+            .Select(x => x.CreatedOnUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (lastOtp != default && (DateTime.UtcNow - lastOtp).TotalSeconds < 120)
+            return Result.Failure(UserErrors.CooldownActive);
+
+        // 2. Generate a new OTP
+        var otp = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+
+        // 3. Invalidate all previous unused OTPs
+        await _context.PasswordResetOtps
+            .Where(x => x.UserId == user.Id && !x.IsUsed)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsUsed, true), cancellationToken);
+
+        // 4. Hash and store the OTP
+        var codeHash = _passwordHasher.HashPassword(user, otp);
+
+        _context.PasswordResetOtps.Add(new PasswordResetOtp
+        {
+            UserId = user.Id,
+            CodeHash = codeHash,
+            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(5)
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // 5. Send the OTP via email
+        await SendResetPasswordEmail(user, otp);
+
+        return Result.Success();
+    }
+
+
 
 
     // Sends email confirmation link with userId and token
