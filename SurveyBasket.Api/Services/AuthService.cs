@@ -6,7 +6,8 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     IJwtProvider jwtProvider,
     IEmailSender emailSender,
     IOptions<AppSettings> appSettings,
-     ApplicationDbContext context) : IAuthService
+    ApplicationDbContext context,
+    IPasswordHasher<ApplicationUser> passwordHasher) : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;//to use identity methods
     private readonly SignInManager<ApplicationUser> _signInManager = signInManager;// Handles the sign-in process efficiently
@@ -15,6 +16,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     private readonly IEmailSender _emailSender = emailSender;
     private readonly IOptions<AppSettings> _appSettings = appSettings;
     private readonly ApplicationDbContext _context = context;
+    private readonly IPasswordHasher<ApplicationUser> _passwordHasher = passwordHasher;
 
     private readonly int _refreshTokenExpiryDays = 14;
 
@@ -236,13 +238,13 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         return Result.Success();
     }
 
-    public async Task<Result> SendResetPasswordCodeAsync(string email)
+    public async Task<Result> SendResetPasswordCodeAsync(string email, CancellationToken cancellationToken)
     {
         if (await _userManager.FindByEmailAsync(email) is not { } user)
-            return Result.Success();
+            return Result.Success();//misleading
 
         if (!user.EmailConfirmed)
-            return Result.Failure(UserErrors.DuplicatedConfirmation);
+            return Result.Failure(UserErrors.EmailNotConfirmed);
 
 
         // 1. Generate OTP (6 digits - cryptographically secure)
@@ -251,30 +253,87 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         // 2. Invalidate all previous OTPs for this user
         await _context.PasswordResetOtps
             .Where(x => x.UserId == user.Id && !x.IsUsed)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsUsed, true));
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsUsed, true), cancellationToken: cancellationToken);
 
         // 3. Hash OTP using PasswordHasher (salted + secure)
-        var hasher = new PasswordHasher<ApplicationUser>();
-        var codeHash = hasher.HashPassword(user, otp);
+        var codeHash = _passwordHasher.HashPassword(user, otp);
 
         // 4. Save new OTP record
         var otpEntity = new PasswordResetOtp
         {
             UserId = user.Id,
             CodeHash = codeHash,
-            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(10)//expiration after 10 minitues
+            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(5)//code expire after 5 minitues
         };
 
         _context.PasswordResetOtps.Add(otpEntity);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
 
-        // 5. Log for dev only — remove in production 
+        // 5. Log for dev only
         _logger.LogInformation("OTP for {Email}: {OTP}", email, otp);
 
         // 6. Send email
         await SendResetPasswordEmail(user, otp);
 
         return Result.Success();
+    }
+
+
+    public async Task<Result<VerifyOtpResponse>> VerifyResetPasswordOtpAsync(VerifyOtpRequest request, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+
+        if (user is null || !user.EmailConfirmed)
+            return Result.Failure<VerifyOtpResponse>(UserErrors.InvalidCode);
+
+        // 1. Retrieve the latest valid OTP (not used and not expired)
+        var otp = await _context.PasswordResetOtps
+            .Where(x =>
+                x.UserId == user.Id &&
+                !x.IsUsed &&
+                x.ExpiresOnUtc > DateTime.UtcNow)
+            .OrderByDescending(x => x.CreatedOnUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // 2. If no valid OTP found, check if there was an expired one (better UX for client)
+        if (otp is null)
+        {
+            var hasExpired = await _context.PasswordResetOtps
+                .AnyAsync(x => x.UserId == user.Id && !x.IsUsed, cancellationToken);
+
+            return hasExpired
+                ? Result.Failure<VerifyOtpResponse>(UserErrors.ExpiredCode)
+                : Result.Failure<VerifyOtpResponse>(UserErrors.InvalidCode);
+        }
+
+        // 3. Check if maximum number of attempts has been reached
+        if (otp.Attempts >= 5)
+        {
+            otp.IsUsed = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Result.Failure<VerifyOtpResponse>(UserErrors.TooManyAttempts);
+        }
+
+        // 4. Verify the provided OTP against the stored hash
+        var verifyResult = _passwordHasher.VerifyHashedPassword(user, otp.CodeHash, request.OtpCode);
+
+        if (verifyResult == PasswordVerificationResult.Failed)
+        {
+            otp.Attempts++;
+            await _context.SaveChangesAsync(cancellationToken);
+            return Result.Failure<VerifyOtpResponse>(UserErrors.InvalidCode);
+        }
+
+        // 5. Mark the OTP as used after successful verification
+        otp.IsUsed = true;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // 6. Generate and encode password reset token
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(resetToken));
+
+        return Result.Success(new VerifyOtpResponse(encodedToken));
     }
 
 
@@ -285,51 +344,26 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         if (user is null || !user.EmailConfirmed)
             return Result.Failure(UserErrors.InvalidCredentials);
 
-        // 1. Get latest valid OTP
-        var otp = await _context.PasswordResetOtps
-            .Where(x =>
-                x.UserId == user.Id &&
-                !x.IsUsed &&
-                x.ExpiresOnUtc > DateTime.UtcNow)
-            .OrderByDescending(x => x.CreatedOnUtc)
-            .FirstOrDefaultAsync();
-
-        if (otp is null)
-            return Result.Failure(UserErrors.InvalidCode);
-
-        // 2. Check attempts
-        if (otp.Attempts >= 5)
+        // Decode the reset token
+        string decodedToken;
+        try
         {
-            otp.IsUsed = true;
-            await _context.SaveChangesAsync();
-            return Result.Failure(UserErrors.TooManyAttempts);
+            decodedToken = Encoding.UTF8.GetString(
+                WebEncoders.Base64UrlDecode(request.ResetToken));
+        }
+        catch
+        {
+            return Result.Failure(UserErrors.InvalidResetToken);
         }
 
-        // 3. Verify OTP using PasswordHasher
-        var hasher = new PasswordHasher<ApplicationUser>();
-        var verifyResult = hasher.VerifyHashedPassword(user, otp.CodeHash, request.Code);
-
-        if (verifyResult == PasswordVerificationResult.Failed)
-        {
-            otp.Attempts++;
-            await _context.SaveChangesAsync();
-            return Result.Failure(UserErrors.InvalidCode);
-        }
-
-        // 4. Mark OTP as used
-        otp.IsUsed = true;
-
-        // 5. Reset password via Identity
-        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
+        // Reset password via Identity
+        var result = await _userManager.ResetPasswordAsync(user, decodedToken, request.NewPassword);
 
         if (!result.Succeeded)
         {
             var error = result.Errors.First();
             return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
         }
-
-        await _context.SaveChangesAsync();
 
         return Result.Success();
     }
@@ -370,7 +404,7 @@ public class AuthService(UserManager<ApplicationUser> userManager,
             {
                { "{{name}}", user.FirstName },
                { "{{otp}}", otp },
-               { "{{expiry_minutes}}", "10" }
+               { "{{expiry_minutes}}", "5" }
             }
         );
 

@@ -28,5 +28,8 @@ public static class UserErrors
 
     public static readonly Error TooManyAttempts =
         new("User.TooManyAttempts", "Too many failed attempts, request a new code", StatusCodes.Status429TooManyRequests);
+
+    public static readonly Error InvalidResetToken =
+       new("User.InvalidResetToken", "Invalid or expired reset token", StatusCodes.Status401Unauthorized);
 }
 
