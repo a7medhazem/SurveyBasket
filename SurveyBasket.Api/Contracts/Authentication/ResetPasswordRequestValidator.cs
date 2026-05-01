@@ -8,11 +8,8 @@ public class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequ
             .NotEmpty()
             .EmailAddress();
 
-        RuleFor(x => x.Code)
-            .NotEmpty()
-            .Length(6)
-            .Matches(RegexPatterns.Otp)
-            .WithMessage("OTP must be exactly 6 digits");
+        RuleFor(x => x.ResetToken)
+            .NotEmpty();
 
         RuleFor(x => x.NewPassword)
                     .NotEmpty()
