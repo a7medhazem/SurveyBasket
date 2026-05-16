@@ -1,4 +1,4 @@
-﻿# SurveyBasket API
+# SurveyBasket API
 
 Production-ready RESTful API for survey management built with **ASP.NET Core 10**, **Clean Architecture**, and the **Result Pattern**.
 
@@ -90,28 +90,15 @@ Forget Password → OTP sent via Email → Verify OTP → Reset Password
 
 HTML templates rendered dynamically via `EmailBodyBuilder` with `{{placeholder}}` token replacement.
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <b>Email Confirmation</b><br/><br/>
-      <img src="./Assets/Confirmation_email.jpeg" width="100%"/>
-    </td>
-    <td width="50%" align="center">
-      <b>Forget Password (OTP)</b><br/><br/>
-      <img src="./Assets/Forget_password_email.jpeg" width="100%"/>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <b>Confirmation Success</b><br/><br/>
-      <img src="./Assets/Confirmation_success.jpeg" width="100%"/>
-    </td>
-    <td width="50%" align="center">
-      <b>Confirmation Failed</b><br/><br/>
-      <img src="./Assets/Confirmation_failed.jpeg" width="100%"/>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="./Assets/Confirmation_email.jpeg" width="185" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="./Assets/Forget_password_email.jpeg" width="185" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="./Assets/Confirmation_success.jpeg" width="185" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="./Assets/Confirmation_failed.jpeg" width="185" />
+</p>
 
 ---
 
@@ -217,15 +204,6 @@ Configure `appsettings.json`:
 ```
 
 Swagger: `https://localhost:{port}/swagger`
-
----
-
-## Author
-
-**Ahmed Hazem** — Backend .NET Developer
-
-[![GitHub](https://img.shields.io/badge/GitHub-a7medhazem-181717?style=flat-square&logo=github)](https://github.com/a7medhazem)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-ahmed--hazzem-0A66C2?style=flat-square&logo=linkedin)](https://linkedin.com/in/ahmed-hazzem)
 
 ---
 
