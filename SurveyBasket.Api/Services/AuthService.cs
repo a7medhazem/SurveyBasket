@@ -5,7 +5,9 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     ILogger<AuthService> logger,
     IJwtProvider jwtProvider,
     IEmailSender emailSender,
-    IOptions<AppSettings> appSettings) : IAuthService
+    IOptions<AppSettings> appSettings,
+    ApplicationDbContext context,
+    IPasswordHasher<ApplicationUser> passwordHasher) : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;//to use identity methods
     private readonly SignInManager<ApplicationUser> _signInManager = signInManager;// Handles the sign-in process efficiently
@@ -13,6 +15,8 @@ public class AuthService(UserManager<ApplicationUser> userManager,
     private readonly IJwtProvider _jwtProvider = jwtProvider;//to call GenerateToken method
     private readonly IEmailSender _emailSender = emailSender;
     private readonly IOptions<AppSettings> _appSettings = appSettings;
+    private readonly ApplicationDbContext _context = context;
+    private readonly IPasswordHasher<ApplicationUser> _passwordHasher = passwordHasher;
 
     private readonly int _refreshTokenExpiryDays = 14;
 
@@ -234,27 +238,102 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         return Result.Success();
     }
 
-    public async Task<Result> SendResetPasswordCodeAsync(string email)
+    public async Task<Result> SendResetPasswordCodeAsync(string email, CancellationToken cancellationToken)
     {
         if (await _userManager.FindByEmailAsync(email) is not { } user)
-            return Result.Success();
+            return Result.Success();//misleading
 
         if (!user.EmailConfirmed)
-            return Result.Failure(UserErrors.DuplicatedConfirmation);
+            return Result.Failure(UserErrors.EmailNotConfirmed);
 
 
-        // Generate email confirmation token
-        var code = await _userManager.GeneratePasswordResetTokenAsync(user);
+        // 1. Generate OTP (6 digits - cryptographically secure)
+        var otp = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
 
-        // Encode the token to be URL-safe
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        // 2. Invalidate all previous OTPs for this user
+        await _context.PasswordResetOtps
+            .Where(x => x.UserId == user.Id && !x.IsUsed)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsUsed, true), cancellationToken: cancellationToken);
 
-        // 4. Log the token and send confirmation email to the user
-        _logger.LogInformation("Reset code token for {Email}: {Token}", user.Email, code);
+        // 3. Hash OTP using PasswordHasher (salted + secure)
+        var codeHash = _passwordHasher.HashPassword(user, otp);
 
-        await SendResetPasswordEmail(user, code);
+        // 4. Save new OTP record
+        var otpEntity = new PasswordResetOtp
+        {
+            UserId = user.Id,
+            CodeHash = codeHash,
+            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(5)//code expire after 5 minitues
+        };
+
+        _context.PasswordResetOtps.Add(otpEntity);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // 5. Log for dev only
+        _logger.LogInformation("OTP for {Email}: {OTP}", email, otp);
+
+        // 6. Send email
+        await SendResetPasswordEmail(user, otp);
 
         return Result.Success();
+    }
+
+
+    public async Task<Result<VerifyOtpResponse>> VerifyResetPasswordOtpAsync(VerifyOtpRequest request, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+
+        if (user is null || !user.EmailConfirmed)
+            return Result.Failure<VerifyOtpResponse>(UserErrors.InvalidCode);
+
+        // 1. Retrieve the latest valid OTP (not used and not expired)
+        var otp = await _context.PasswordResetOtps
+            .Where(x =>
+                x.UserId == user.Id &&
+                !x.IsUsed &&
+                x.ExpiresOnUtc > DateTime.UtcNow)
+            .OrderByDescending(x => x.CreatedOnUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // 2. If no valid OTP found, check if there was an expired one (better UX for client)
+        if (otp is null)
+        {
+            var hasExpired = await _context.PasswordResetOtps
+                .AnyAsync(x => x.UserId == user.Id && !x.IsUsed, cancellationToken);
+
+            return hasExpired
+                ? Result.Failure<VerifyOtpResponse>(UserErrors.ExpiredCode)
+                : Result.Failure<VerifyOtpResponse>(UserErrors.InvalidCode);
+        }
+
+        // 3. Check if maximum number of attempts has been reached
+        if (otp.Attempts >= 5)
+        {
+            otp.IsUsed = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Result.Failure<VerifyOtpResponse>(UserErrors.TooManyAttempts);
+        }
+
+        // 4. Verify the provided OTP against the stored hash
+        var verifyResult = _passwordHasher.VerifyHashedPassword(user, otp.CodeHash, request.OtpCode);
+
+        if (verifyResult == PasswordVerificationResult.Failed)
+        {
+            otp.Attempts++;
+            await _context.SaveChangesAsync(cancellationToken);
+            return Result.Failure<VerifyOtpResponse>(UserErrors.InvalidCode);
+        }
+
+        // 5. Mark the OTP as used after successful verification
+        otp.IsUsed = true;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // 6. Generate and encode password reset token
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(resetToken));
+
+        return Result.Success(new VerifyOtpResponse(encodedToken));
     }
 
 
@@ -263,28 +342,77 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         var user = await _userManager.FindByEmailAsync(request.Email);
 
         if (user is null || !user.EmailConfirmed)
-            return Result.Failure(UserErrors.InvalidCode); // misleading hacker
+            return Result.Failure(UserErrors.InvalidCredentials);
 
-        IdentityResult result;
-
+        // Decode the reset token
+        string decodedToken;
         try
         {
-            var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Code));
-
-            result = await _userManager.ResetPasswordAsync(user, code, request.NewPassword);
+            decodedToken = Encoding.UTF8.GetString(
+                WebEncoders.Base64UrlDecode(request.ResetToken));
         }
-        catch (FormatException)
+        catch
         {
-            result = IdentityResult.Failed(_userManager.ErrorDescriber.InvalidToken());
+            return Result.Failure(UserErrors.InvalidResetToken);
         }
 
-        if (result.Succeeded)
-            return Result.Success();
+        // Reset password via Identity
+        var result = await _userManager.ResetPasswordAsync(user, decodedToken, request.NewPassword);
 
-        var error = result.Errors.First();
+        if (!result.Succeeded)
+        {
+            var error = result.Errors.First();
+            return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status400BadRequest));
+        }
 
-        return Result.Failure(new Error(error.Code, error.Description, StatusCodes.Status401Unauthorized));
+        return Result.Success();
     }
+
+    public async Task<Result> ResendResetPasswordOtpAsync(string email, CancellationToken cancellationToken)
+    {
+        if (await _userManager.FindByEmailAsync(email) is not { } user)
+            return Result.Success(); // Security: do not reveal whether the user exists
+
+        if (!user.EmailConfirmed)
+            return Result.Failure(UserErrors.EmailNotConfirmed);
+
+        // 1. Cooldown check — prevent spam
+        // If an OTP was sent less than 2 minutes ago, do not send another one
+        var lastOtp = await _context.PasswordResetOtps
+            .Where(x => x.UserId == user.Id)
+            .OrderByDescending(x => x.CreatedOnUtc)
+            .Select(x => x.CreatedOnUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (lastOtp != default && (DateTime.UtcNow - lastOtp).TotalSeconds < 120)
+            return Result.Failure(UserErrors.CooldownActive);
+
+        // 2. Generate a new OTP
+        var otp = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString();
+
+        // 3. Invalidate all previous unused OTPs
+        await _context.PasswordResetOtps
+            .Where(x => x.UserId == user.Id && !x.IsUsed)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsUsed, true), cancellationToken);
+
+        // 4. Hash and store the OTP
+        var codeHash = _passwordHasher.HashPassword(user, otp);
+
+        _context.PasswordResetOtps.Add(new PasswordResetOtp
+        {
+            UserId = user.Id,
+            CodeHash = codeHash,
+            ExpiresOnUtc = DateTime.UtcNow.AddMinutes(5)
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // 5. Send the OTP via email
+        await SendResetPasswordEmail(user, otp);
+
+        return Result.Success();
+    }
+
 
 
 
@@ -314,16 +442,15 @@ public class AuthService(UserManager<ApplicationUser> userManager,
         );
     }
 
-    //add reset password email sender with templated HTML and verification link
-    private async Task SendResetPasswordEmail(ApplicationUser user, string code)
+    //add reset password email sender with templated HTML and OTP code
+    private async Task SendResetPasswordEmail(ApplicationUser user, string otp)
     {
-        var confirmationUrl = $"{_appSettings.Value.BaseUrl}/auth/forgetPassword?email={user.Email}&code={code}";
-
         var emailBody = EmailBodyBuilder.GenerateEmailBody("ForgetPassword",
             templateModel: new Dictionary<string, string>
             {
-            { "{{name}}",$"{user.FirstName}" },
-            { "{{action_url}}", confirmationUrl }
+               { "{{name}}", user.FirstName },
+               { "{{otp}}", otp },
+               { "{{expiry_minutes}}", "5" }
             }
         );
 

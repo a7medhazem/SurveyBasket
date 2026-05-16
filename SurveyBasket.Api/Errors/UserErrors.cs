@@ -22,5 +22,18 @@ public static class UserErrors
 
     public static readonly Error DuplicatedConfirmation =
         new("User.DuplicatedConfirmation", "Email already confirmed", StatusCodes.Status400BadRequest);
+
+    public static readonly Error ExpiredCode =
+    new("User.ExpiredCode", "OTP code has expired", StatusCodes.Status401Unauthorized);
+
+    public static readonly Error TooManyAttempts =
+        new("User.TooManyAttempts", "Too many failed attempts, request a new code", StatusCodes.Status429TooManyRequests);
+
+    public static readonly Error InvalidResetToken =
+       new("User.InvalidResetToken", "Invalid or expired reset token", StatusCodes.Status401Unauthorized);
+
+
+    public static readonly Error CooldownActive =
+        new("User.CooldownActive", "Please wait before requesting a new code", StatusCodes.Status429TooManyRequests);
 }
 

@@ -2,7 +2,7 @@
 
 public record ResetPasswordRequest(
     string Email,
-    string Code,
+    string ResetToken,
     string NewPassword,
     string ConfirmPassword
 );

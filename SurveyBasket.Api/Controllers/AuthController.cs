@@ -71,12 +71,20 @@ public class AuthController(IAuthService authService, ILogger<AuthService> logge
 
 
     [HttpPost("forget-password")]
-    public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
+    public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request, CancellationToken cancellationToken)
     {
-        var result = await _authService.SendResetPasswordCodeAsync(request.Email);
+        var result = await _authService.SendResetPasswordCodeAsync(request.Email, cancellationToken);
 
         return result.IsSuccess
             ? Ok() : result.ToProblem();
+    }
+
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.VerifyResetPasswordOtpAsync(request, cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Value) : result.ToProblem();
     }
 
     [HttpPost("reset-password")]
@@ -86,5 +94,12 @@ public class AuthController(IAuthService authService, ILogger<AuthService> logge
 
         return result.IsSuccess
             ? Ok() : result.ToProblem();
+    }
+
+    [HttpPost("resend-otp")]
+    public async Task<IActionResult> ResendOtp([FromBody] ResendOtpRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.ResendResetPasswordOtpAsync(request.Email, cancellationToken);
+        return result.IsSuccess ? Ok() : result.ToProblem();
     }
 }
