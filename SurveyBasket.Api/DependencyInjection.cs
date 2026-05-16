@@ -67,7 +67,17 @@ public static class DependencyInjection
     private static IServiceCollection AddSweggerServicesConfig(this IServiceCollection services)
     {
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
+
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "SurveyBasket API",
+                Version = "v1",
+                Description = "A production-ready RESTful API for managing polls, questions, answers, voting, authentication, and results analytics."
+            });
+        });
+
         return services;
     }
 

@@ -11,6 +11,7 @@ global using Microsoft.AspNetCore.Authentication.JwtBearer;
 global using Microsoft.AspNetCore.Identity.UI.Services;
 global using Microsoft.IdentityModel.Tokens;
 global using Microsoft.AspNetCore.WebUtilities;
+global using Microsoft.OpenApi;
 
 
 global using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
